@@ -1,9 +1,8 @@
 #version 450 core
 
 layout(location = 0) in vec4 pos;
-layout(location = 1) in vec4 vcolor;
 
-layout(location = 0) out vec4 fcolor;
+layout(location = 0) out vec4 frag_pos;
 
 // Our uniform buffer containing the projection * view matrix
 layout(set = 0, binding = 0, std140) uniform ViewParams {
@@ -11,6 +10,6 @@ layout(set = 0, binding = 0, std140) uniform ViewParams {
 };
 
 void main(void) {
-    fcolor = vcolor;
     gl_Position = proj_view * pos;
+    frag_pos = (pos+1)/2;
 }
