@@ -42,7 +42,7 @@
   // Specify vertex data
   // Allocate room for the vertex data: 3 vertices, each with 2 float4's
   var dataBuf = device.createBuffer({
-    size: 3 * 2 * 4 * 4,
+    size: 6 * 2 * 4 * 4,
     usage: GPUBufferUsage.VERTEX,
     mappedAtCreation: true,
   });
@@ -68,7 +68,7 @@
 
   // Interleaved positions and colors
   new Float32Array(dataBuf.getMappedRange()).set([
-    1,
+    -1,
     -1,
     0,
     1, // position
@@ -77,6 +77,30 @@
     0,
     1, // color
     -1,
+    1,
+    0,
+    1, // position
+    0,
+    1,
+    0,
+    1, // color
+    1,
+    1,
+    0,
+    1, // position
+    0,
+    0,
+    1,
+    1, // color
+    -1,
+    -1,
+    0,
+    1, // position
+    1,
+    0,
+    0,
+    1, // color
+    1,
     -1,
     0,
     1, // position
@@ -84,7 +108,7 @@
     1,
     0,
     1, // color
-    0,
+    1,
     1,
     0,
     1, // position
@@ -227,7 +251,7 @@
     renderPass.setVertexBuffer(0, dataBuf);
     // Set the bind group to its associated slot
     renderPass.setBindGroup(0, bindGroup);
-    renderPass.draw(3, 1, 0, 0);
+    renderPass.draw(6, 1, 0, 0);
 
     renderPass.endPass();
     device.queue.submit([commandEncoder.finish()]);
