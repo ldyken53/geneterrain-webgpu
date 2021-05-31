@@ -1,39 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, shrink-to-fit=no"
-    />
-    <!-- Bootstrap CSS -->
-    <link
-      rel="stylesheet"
-      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
-      integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
-      crossorigin="anonymous"
-    />
 
-    <title>WebGPU Experiments</title>
-  </head>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+    integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous" />
 
-  <body>
-    <div class="container mt-4">
-      <div class="row">
-        <div class="col-12 text-center">
-          <h4>WebGPU Experiments</h4>
-          <canvas
-            id="webgpu-canvas"
-            class="img-fluid"
-            width="1280"
-            height="720"
-          ></canvas>
-        </div>
+  <title>WebGPU Experiments</title>
+</head>
+
+<body>
+  <div class="container mt-4">
+    <div class="row">
+      <div class="col-12 text-center">
+        <h4>WebGPU Experiments</h4>
+        <canvas id="webgpu-canvas" class="img-fluid" width="1280" height="720"></canvas>
+        <label for="node">Select a node file:</label>
+        <input type="file" id="node" name="node">
+
+        <label for="edge">Select an edge file:</label>
+        <input type="file" id="edge" name="edge">
+        <br />
+        <label for="layout">Select a layout file:</label>
+        <input type="file" id="layout" name="layout">
+
+        <button id="submit">Submit</button>
       </div>
     </div>
-    <script src="shaders/embedded_shaders.js"></script>
-    <script src="js/gl-matrix-min.js"></script>
-    <script src="js/webgl-util.js"></script>
-    <script src="js/render.js"></script>
-  </body>
+  </div>
+  <script src="shaders/embedded_shaders.js"></script>
+  <script src="js/gl-matrix-min.js"></script>
+  <script src="js/webgl-util.js"></script>
+  <script src="js/render.js"></script>
+</body>
+
 </html>

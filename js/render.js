@@ -4,9 +4,47 @@
     return;
   }
 
+  this.nodeIDToValue = {};
+  this.nodeData = [];
+  this.layoutData = null;
+
+  function onSubmit() {
+    const layoutReader = new FileReader();
+    layoutReader.onload = function (event) {
+      layoutData = layoutReader.result.split("\r\n");
+      console.log(nodeIDToValue);
+      for (element of layoutData) {
+        parts = element.split("\t");
+        if (nodeIDToValue[parts[0]]) {
+          // Pushes values to node data in order of struct:
+          // nodeValue, nodeX, nodeY, nodeSize
+          nodeData.push(parseFloat(nodeIDToValue[parts[0]]), parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3]));
+        } else {
+          console.log(parts[0]);
+        }
+      }
+      render();
+    };
+    const nodeReader = new FileReader();
+    nodeReader.onload = function (event) {
+      var rawNodes = nodeReader.result.split("\r\n");
+      for (element of rawNodes) {
+        nodeIDToValue[element.split("\t")[0]] = element.split("\t")[1]
+      }
+      layoutReader.readAsText(document.getElementById("layout").files[0]);
+    };
+    nodeReader.readAsText(document.getElementById("node").files[0]);
+    const edgeReader = new FileReader();
+    edgeReader.onload = function (event) {
+      edgeData = edgeReader.result.split("\r\n");
+    };
+    edgeReader.readAsText(document.getElementById("edge").files[0]);
+  }
+
+  document.getElementById("submit").onclick = onSubmit;
   // Get a GPU device to render with
   var adapter = await navigator.gpu.requestAdapter();
-  var device = await adapter.requestDevice();
+  this.device = await adapter.requestDevice();
 
   // Get a context to display our rendered image on the canvas
   var canvas = document.getElementById("webgpu-canvas");
@@ -19,18 +57,13 @@
     entryPoint: "main",
     buffers: [
       {
-        arrayStride: 2 * 4 * 4,
+        arrayStride: 4 * 4,
         attributes: [
           {
             format: "float32x4",
             offset: 0,
             shaderLocation: 0,
-          },
-          {
-            format: "float32x4",
-            offset: 4 * 4,
-            shaderLocation: 1,
-          },
+          }
         ],
       },
     ],
@@ -42,7 +75,7 @@
   // Specify vertex data
   // Allocate room for the vertex data: 3 vertices, each with 2 float4's
   var dataBuf = device.createBuffer({
-    size: 6 * 2 * 4 * 4,
+    size: 6 * 4 * 4,
     usage: GPUBufferUsage.VERTEX,
     mappedAtCreation: true,
   });
@@ -58,6 +91,25 @@
           type: "uniform",
         },
       },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: {
+          type: "storage"
+        }
+      },
+      {
+        binding: 2,
+        // One or more stage flags, or'd together
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: {}
+      },
+      {
+        binding: 3,
+        // One or more stage flags, or'd together
+        visibility: GPUShaderStage.FRAGMENT,
+        sampler: {}
+      },
     ],
   });
 
@@ -72,50 +124,26 @@
     -1,
     0,
     1, // position
-    1,
-    0,
-    0,
-    1, // color
     -1,
     1,
     0,
     1, // position
-    0,
-    1,
-    0,
-    1, // color
     1,
     1,
     0,
     1, // position
-    0,
-    0,
-    1,
-    1, // color
     -1,
     -1,
     0,
     1, // position
     1,
-    0,
-    0,
-    1, // color
-    1,
     -1,
     0,
     1, // position
-    0,
-    1,
-    0,
-    1, // color
     1,
     1,
     0,
     1, // position
-    0,
-    0,
-    1,
-    1, // color
   ]);
   dataBuf.unmap();
 
@@ -123,19 +151,6 @@
   var viewParamsBuffer = device.createBuffer({
     size: 16 * 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-
-  // Create a bind group which places our view params buffer at binding 0
-  var bindGroup = device.createBindGroup({
-    layout: bindGroupLayout,
-    entries: [
-      {
-        binding: 0,
-        resource: {
-          buffer: viewParamsBuffer,
-        },
-      },
-    ],
   });
 
   // Create an Arcball camera and view projection matrix
@@ -207,6 +222,23 @@
     },
   });
 
+  // Load the default colormap and upload it
+  var colormapImage = new Image();
+  colormapImage.src = "colormaps/rainbow.png";
+  await colormapImage.decode();
+  const imageBitmap = await createImageBitmap(colormapImage);
+  this.colorTexture = device.createTexture({
+    size: [imageBitmap.width, imageBitmap.height, 1],
+    format: "rgba8unorm",
+    usage: GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST,
+  });
+  device.queue.copyImageBitmapToTexture(
+    { imageBitmap },
+    { texture: colorTexture },
+    [imageBitmap.width, imageBitmap.height, 1]
+  );
+
+
   // Render!
   var renderPassDesc = {
     colorAttachments: [
@@ -224,38 +256,138 @@
     },
   };
 
-  //render!
-  var frame = function () {
-    renderPassDesc.colorAttachments[0].view = swapChain
-      .getCurrentTexture()
-      .createView();
+  function render() {
+    // Testing
+    var maxX = 0;
+    var maxY = 0;
+    var minX = 0;
+    var minY = 0;
+    for (var k = 0; k < 406; k++) {
+      if (nodeData[k * 4 + 1] > maxX) {
+        maxX = nodeData[k * 4 + 1];
+      }
+      if (nodeData[k * 4 + 1] < minX) {
+        minX = nodeData[k * 4 + 1];
+      }
+      if (nodeData[k * 4 + 2] > maxY) {
+        maxY = nodeData[k * 4 + 2];
+      }
+      if (nodeData[k * 4 + 2] < minY) {
+        minY = nodeData[k * 4 + 2];
+      }
+    }
 
-    // Compute and upload the combined projection and view matrix
-    projView = mat4.mul(projView, projection, camera.camera);
+    for (var k = 0; k < 406; k++) {
+      nodeData[k * 4 + 1] = -8 + (nodeData[k * 4 + 1] - minX) / (maxX - minX) * 16;
+      nodeData[k * 4 + 2] = -8 + (nodeData[k * 4 + 2] - minY) / (maxY - minY) * 16;
+    }
+
+    var minValue = 0;
+    var maxValue = 0;
+    var values = [];
+    for (var i = 0; i < 1.01; i += 0.1) {
+      for (var j = 0; j < 1.01; j += 0.1) {
+        var value = 0;
+        for (var k = 0; k < 406; k++) {
+          var sqrDistance = ((j * 60 - 30) - nodeData[k * 4 + 1]) * ((j * 60 - 30) - nodeData[k * 4 + 1]) + ((i * 60 - 30) - nodeData[k * 4 + 2]) * ((i * 60 - 30) - nodeData[k * 4 + 2]);
+          value += nodeData[k * 4] / (sqrDistance + 1.0);
+        }
+        if (value > maxValue) {
+          maxValue = value;
+        }
+        if (value < minValue) {
+          minValue = value;
+        }
+        values.push(value);
+      }
+    }
+
+    console.log(minValue, maxValue);
+    console.log(values);
+
+    // Create our sampler
+    const sampler = device.createSampler({
+      magFilter: "linear",
+      minFilter: "linear",
+    });
+
+    nodeDataBuffer = device.createBuffer({
+      size: nodeData.length * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    });
+
+    // Create a bind group which places our view params buffer at binding 0
+    var bindGroup = device.createBindGroup({
+      layout: bindGroupLayout,
+      entries: [
+        {
+          binding: 0,
+          resource: {
+            buffer: viewParamsBuffer,
+          },
+        },
+        {
+          binding: 1,
+          resource: {
+            buffer: nodeDataBuffer,
+          }
+        },
+        {
+          binding: 2,
+          resource: this.colorTexture.createView(),
+        },
+        {
+          binding: 3,
+          resource: sampler,
+        },
+      ],
+    });
+
     var upload = device.createBuffer({
-      size: 16 * 4,
+      size: nodeData.length * 4,
       usage: GPUBufferUsage.COPY_SRC,
       mappedAtCreation: true,
     });
-    new Float32Array(upload.getMappedRange()).set(projView);
+    new Float32Array(upload.getMappedRange()).set(new Float32Array(nodeData));
     upload.unmap();
 
     var commandEncoder = device.createCommandEncoder();
-
-    // Copy the upload buffer to our uniform buffer
-    commandEncoder.copyBufferToBuffer(upload, 0, viewParamsBuffer, 0, 16 * 4);
-
-    var renderPass = commandEncoder.beginRenderPass(renderPassDesc);
-
-    renderPass.setPipeline(renderPipeline);
-    renderPass.setVertexBuffer(0, dataBuf);
-    // Set the bind group to its associated slot
-    renderPass.setBindGroup(0, bindGroup);
-    renderPass.draw(6, 1, 0, 0);
-
-    renderPass.endPass();
+    commandEncoder.copyBufferToBuffer(upload, 0, nodeDataBuffer, 0, nodeData.length * 4);
     device.queue.submit([commandEncoder.finish()]);
+
+    //render!
+    var frame = function () {
+      renderPassDesc.colorAttachments[0].view = swapChain
+        .getCurrentTexture()
+        .createView();
+
+      // Compute and upload the combined projection and view matrix
+      projView = mat4.mul(projView, projection, camera.camera);
+      var upload = device.createBuffer({
+        size: 16 * 4,
+        usage: GPUBufferUsage.COPY_SRC,
+        mappedAtCreation: true,
+      });
+      new Float32Array(upload.getMappedRange()).set(projView);
+      upload.unmap();
+
+      var commandEncoder = device.createCommandEncoder();
+
+      // Copy the upload buffer to our uniform buffer
+      commandEncoder.copyBufferToBuffer(upload, 0, viewParamsBuffer, 0, 16 * 4);
+
+      var renderPass = commandEncoder.beginRenderPass(renderPassDesc);
+
+      renderPass.setPipeline(renderPipeline);
+      renderPass.setVertexBuffer(0, dataBuf);
+      // Set the bind group to its associated slot
+      renderPass.setBindGroup(0, bindGroup);
+      renderPass.draw(6, 1, 0, 0);
+
+      renderPass.endPass();
+      device.queue.submit([commandEncoder.finish()]);
+      requestAnimationFrame(frame);
+    };
     requestAnimationFrame(frame);
-  };
-  requestAnimationFrame(frame);
+  }
 })();

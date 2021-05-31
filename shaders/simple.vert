@@ -11,5 +11,5 @@ layout(set = 0, binding = 0, std140) uniform ViewParams {
 
 void main(void) {
     gl_Position = proj_view * pos;
-    frag_pos = (pos+1)/2;
+    frag_pos = pos * 8;
 }
