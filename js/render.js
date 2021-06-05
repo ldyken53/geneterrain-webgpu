@@ -6,24 +6,32 @@
 
   this.nodeIDToValue = {};
   this.nodeData = [];
+  this.nodeElements = [];
   this.layoutData = null;
 
   function onSubmit() {
+    const edgeReader = new FileReader();
+    edgeReader.onload = function (event) {
+      edgeData = edgeReader.result.split("\r\n");
+      render();
+    };
     const layoutReader = new FileReader();
     layoutReader.onload = function (event) {
       layoutData = layoutReader.result.split("\r\n");
       console.log(nodeIDToValue);
+      var i = 0;
       for (element of layoutData) {
         parts = element.split("\t");
         if (nodeIDToValue[parts[0]]) {
-          // Pushes values to node data in order of struct:
+          // Pushes values to node data in order of struct for WebGPU:
           // nodeValue, nodeX, nodeY, nodeSize
           nodeData.push(parseFloat(nodeIDToValue[parts[0]]), parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3]));
-        } else {
-          console.log(parts[0]);
+          // Pushes value for cytoscape
+          nodeElements.push({ data: { id: parts[0] }, position: { x: 1000 * parseFloat(parts[1]), y: -1000 * parseFloat(parts[2]) }, locked: true });
         }
+        i += 1;
       }
-      render();
+      edgeReader.readAsText(document.getElementById("edge").files[0]);
     };
     const nodeReader = new FileReader();
     nodeReader.onload = function (event) {
@@ -34,11 +42,6 @@
       layoutReader.readAsText(document.getElementById("layout").files[0]);
     };
     nodeReader.readAsText(document.getElementById("node").files[0]);
-    const edgeReader = new FileReader();
-    edgeReader.onload = function (event) {
-      edgeData = edgeReader.result.split("\r\n");
-    };
-    edgeReader.readAsText(document.getElementById("edge").files[0]);
   }
 
   document.getElementById("submit").onclick = onSubmit;
@@ -257,6 +260,21 @@
   };
 
   function render() {
+    console.log(this.nodeElements);
+    var cy = cytoscape({
+      container: document.getElementById('cy'),
+      style: [{
+        selector: 'node',
+        css: {
+          'content': 'data(id)',
+          'text-valign': 'center',
+          'text-halign': 'center',
+        }
+      }
+      ],
+      elements: this.nodeElements
+    });
+
     // Testing
     var maxX = 0;
     var maxY = 0;
@@ -301,9 +319,6 @@
         values.push(value);
       }
     }
-
-    console.log(minValue, maxValue);
-    console.log(values);
 
     // Create our sampler
     const sampler = device.createSampler({
