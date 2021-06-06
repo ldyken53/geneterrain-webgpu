@@ -11,14 +11,14 @@
 
   function onSubmit() {
     const edgeReader = new FileReader();
-    edgeReader.onload = function (event) {
+    edgeReader.onload = async function (event) {
       edgeData = edgeReader.result.split("\r\n");
-      render();
+      drawCytoscape();
+      await render();
     };
     const layoutReader = new FileReader();
     layoutReader.onload = function (event) {
       layoutData = layoutReader.result.split("\r\n");
-      console.log(nodeIDToValue);
       var i = 0;
       for (element of layoutData) {
         parts = element.split("\t");
@@ -27,7 +27,7 @@
           // nodeValue, nodeX, nodeY, nodeSize
           nodeData.push(parseFloat(nodeIDToValue[parts[0]]), parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3]));
           // Pushes value for cytoscape
-          nodeElements.push({ data: { id: parts[0] }, position: { x: 1000 * parseFloat(parts[1]), y: -1000 * parseFloat(parts[2]) }, locked: true });
+          nodeElements.push({ data: { id: parts[0] }, position: { x: 1200 * parseFloat(parts[1]), y: -1200 * parseFloat(parts[2]) }, locked: true });
         }
         i += 1;
       }
@@ -45,13 +45,34 @@
   }
 
   document.getElementById("submit").onclick = onSubmit;
-  // Get a GPU device to render with
-  var adapter = await navigator.gpu.requestAdapter();
-  this.device = await adapter.requestDevice();
 
   // Get a context to display our rendered image on the canvas
   var canvas = document.getElementById("webgpu-canvas");
   var context = canvas.getContext("gpupresent");
+
+  document.getElementById("overlay").onclick = () => {
+    var upload = device.createBuffer({
+      size: 4,
+      usage: GPUBufferUsage.COPY_SRC,
+      mappedAtCreation: true,
+    });
+    var overlay = 0;
+    if (document.getElementById("overlay").checked) {
+      overlay = 1;
+    }
+    new Float32Array(upload.getMappedRange()).set([overlay]);
+    upload.unmap();
+
+    var commandEncoder = device.createCommandEncoder();
+
+    // Copy the upload buffer to our uniform buffer
+    commandEncoder.copyBufferToBuffer(upload, 0, overlayBuffer, 0, 4);
+    device.queue.submit([commandEncoder.finish()]);
+  };
+
+  // Get a GPU device to render with
+  var adapter = await navigator.gpu.requestAdapter();
+  this.device = await adapter.requestDevice();
 
   // Setup shader modules
   var vertModule = device.createShaderModule({ code: simple_vert_spv });
@@ -113,6 +134,19 @@
         visibility: GPUShaderStage.FRAGMENT,
         sampler: {}
       },
+      {
+        binding: 4,
+        visibility: GPUShaderStage.FRAGMENT,
+        storageTexture: { access: "read-only", format: "rgba8unorm" }
+      },
+      {
+        binding: 5,
+        // One or more stage flags, or'd together
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: {
+          type: "uniform",
+        },
+      },
     ],
   });
 
@@ -153,6 +187,12 @@
   // Create a buffer to store the view parameters
   var viewParamsBuffer = device.createBuffer({
     size: 16 * 4,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
+  // Create a buffer to store the overlay boolean
+  var overlayBuffer = device.createBuffer({
+    size: 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -230,17 +270,16 @@
   colormapImage.src = "colormaps/rainbow.png";
   await colormapImage.decode();
   const imageBitmap = await createImageBitmap(colormapImage);
-  this.colorTexture = device.createTexture({
+  var colorTexture = device.createTexture({
     size: [imageBitmap.width, imageBitmap.height, 1],
     format: "rgba8unorm",
-    usage: GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST,
+    usage: GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
   });
-  device.queue.copyImageBitmapToTexture(
-    { imageBitmap },
+  device.queue.copyExternalImageToTexture(
+    { source: imageBitmap },
     { texture: colorTexture },
     [imageBitmap.width, imageBitmap.height, 1]
   );
-
 
   // Render!
   var renderPassDesc = {
@@ -259,8 +298,10 @@
     },
   };
 
-  function render() {
-    console.log(this.nodeElements);
+  var overlayTexture = null;
+  var clearOverlay = false;
+
+  function drawCytoscape() {
     var cy = cytoscape({
       container: document.getElementById('cy'),
       style: [{
@@ -274,7 +315,9 @@
       ],
       elements: this.nodeElements
     });
+  }
 
+  async function render() {
     // Testing
     var maxX = 0;
     var maxY = 0;
@@ -320,6 +363,14 @@
       }
     }
 
+    // Setup overlay
+    var overlayCanvas = document.querySelector("[data-id='layer2-node']");
+    overlayTexture = device.createTexture({
+      size: [canvas.width, canvas.height, 1],
+      format: "rgba8unorm",
+      usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.STORAGE | GPUTextureUsage.RENDER_ATTACHMENT
+    });
+
     // Create our sampler
     const sampler = device.createSampler({
       magFilter: "linear",
@@ -329,33 +380,6 @@
     nodeDataBuffer = device.createBuffer({
       size: nodeData.length * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-    });
-
-    // Create a bind group which places our view params buffer at binding 0
-    var bindGroup = device.createBindGroup({
-      layout: bindGroupLayout,
-      entries: [
-        {
-          binding: 0,
-          resource: {
-            buffer: viewParamsBuffer,
-          },
-        },
-        {
-          binding: 1,
-          resource: {
-            buffer: nodeDataBuffer,
-          }
-        },
-        {
-          binding: 2,
-          resource: this.colorTexture.createView(),
-        },
-        {
-          binding: 3,
-          resource: sampler,
-        },
-      ],
     });
 
     var upload = device.createBuffer({
@@ -371,7 +395,56 @@
     device.queue.submit([commandEncoder.finish()]);
 
     //render!
-    var frame = function () {
+    var frame = async function () {
+      if (document.getElementById("overlay").checked) {
+        // Setup overlay
+        var overlayImage = new Image();
+        overlayImage.src = overlayCanvas.toDataURL();
+        await overlayImage.decode();
+        const imageBitmap = await createImageBitmap(overlayImage);
+        device.queue.copyExternalImageToTexture(
+          { source: imageBitmap },
+          { texture: overlayTexture },
+          [imageBitmap.width, imageBitmap.height, 1]
+        );
+      }
+
+      var bindGroup = device.createBindGroup({
+        layout: bindGroupLayout,
+        entries: [
+          {
+            binding: 0,
+            resource: {
+              buffer: viewParamsBuffer,
+            },
+          },
+          {
+            binding: 1,
+            resource: {
+              buffer: nodeDataBuffer,
+            }
+          },
+          {
+            binding: 2,
+            resource: colorTexture.createView(),
+          },
+          {
+            binding: 3,
+            resource: sampler,
+          },
+          {
+            binding: 4,
+            resource: overlayTexture.createView(),
+          },
+          {
+            binding: 5,
+            resource: {
+              buffer: overlayBuffer,
+            },
+          },
+        ],
+      });
+
       renderPassDesc.colorAttachments[0].view = swapChain
         .getCurrentTexture()
         .createView();
