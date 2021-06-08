@@ -13,6 +13,12 @@
     const edgeReader = new FileReader();
     edgeReader.onload = async function (event) {
       edgeData = edgeReader.result.split("\r\n");
+      for (element of edgeData) {
+        parts = element.split("\t");
+        if (nodeIDToValue[parts[0]] && nodeIDToValue[parts[1]]) {
+          nodeElements.push({ data: { source: parts[0], target: parts[1], weight: parseFloat(parts[2]) } });
+        }
+      }
       drawCytoscape();
       await render();
     };
@@ -68,6 +74,15 @@
     // Copy the upload buffer to our uniform buffer
     commandEncoder.copyBufferToBuffer(upload, 0, overlayBuffer, 0, 4);
     device.queue.submit([commandEncoder.finish()]);
+  };
+
+  document.getElementById("edges").onclick = () => {
+    if (document.getElementById("edges").checked) {
+      showEdges = 1;
+    } else {
+      showEdges = 0;
+    }
+    drawCytoscape();
   };
 
   // Get a GPU device to render with
@@ -196,38 +211,6 @@
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  // Create an Arcball camera and view projection matrix
-  var camera = new ArcballCamera([0, 0, 3], [0, 0, 0], [0, 1, 0], 0.5, [
-    canvas.width,
-    canvas.height,
-  ]);
-
-  // Create a perspective projection matrix
-  var projection = mat4.perspective(
-    mat4.create(),
-    (50 * Math.PI) / 180.0,
-    canvas.width / canvas.height,
-    0.1,
-    100
-  );
-
-  // Matrix which will store the computed projection * view matrix
-  var projView = mat4.create();
-
-  // Controller utility for interacting with the canvas and driving the Arcball camera
-  var controller = new Controller();
-  controller.mousemove = function (prev, cur, evt) {
-    if (evt.buttons == 1) {
-      camera.rotate(prev, cur);
-    } else if (evt.buttons == 2) {
-      camera.pan([cur[0] - prev[0], prev[1] - cur[1]]);
-    }
-  };
-  controller.wheel = function (amt) {
-    camera.zoom(amt * 0.5);
-  };
-  controller.registerForCanvas(canvas);
-
   // Setup render outputs
   var swapChainFormat = "bgra8unorm";
   var swapChain = context.configureSwapChain({
@@ -300,6 +283,7 @@
 
   var overlayTexture = null;
   var clearOverlay = false;
+  var showEdges = 0;
 
   function drawCytoscape() {
     var cy = cytoscape({
@@ -308,9 +292,22 @@
         selector: 'node',
         css: {
           'content': 'data(id)',
-          'text-valign': 'center',
+          'text-valign': 'top',
           'text-halign': 'center',
+          'height': '10px',
+          'width': '10px',
+          'background-opacity': 0,
+          'border-width': 1,
+          'border-color': 'gray'
         }
+      },
+      {
+        selector: 'edge',
+        css: {
+          'width': 'data(weight)',
+          'line-color': 'gray',
+          'opacity': showEdges
+        },
       }
       ],
       elements: this.nodeElements
@@ -370,6 +367,38 @@
       format: "rgba8unorm",
       usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.STORAGE | GPUTextureUsage.RENDER_ATTACHMENT
     });
+
+    // Create an Arcball camera and view projection matrix
+    var camera = new ArcballCamera([0, 0, 3], [0, 0, 0], [0, 1, 0], 0.5, [
+      canvas.width,
+      canvas.height,
+    ]);
+
+    // Create a perspective projection matrix
+    var projection = mat4.perspective(
+      mat4.create(),
+      (50 * Math.PI) / 180.0,
+      canvas.width / canvas.height,
+      0.1,
+      100
+    );
+
+    // Matrix which will store the computed projection * view matrix
+    var projView = mat4.create();
+
+    // Controller utility for interacting with the canvas and driving the Arcball camera
+    var controller = new Controller();
+    controller.mousemove = function (prev, cur, evt) {
+      if (evt.buttons == 1) {
+        camera.rotate(prev, cur);
+      } else if (evt.buttons == 2) {
+        camera.pan([cur[0] - prev[0], prev[1] - cur[1]]);
+      }
+    };
+    controller.wheel = function (amt) {
+      camera.zoom(amt * 0.5);
+    };
+    controller.registerForCanvas(canvas);
 
     // Create our sampler
     const sampler = device.createSampler({
