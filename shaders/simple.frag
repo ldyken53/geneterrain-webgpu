@@ -34,7 +34,7 @@ void main(void) {
     }
     value = (value+5)/10;
     if (overlay > 0) {
-        color = imageLoad(output_texture, ivec2((vec2(1, -1) * frag_pos.xy + vec2(8)) * vec2(600)  / vec2(16)));
+        color = imageLoad(output_texture, ivec2((vec2(1, -1) * frag_pos.xy + vec2(8)) * vec2(1200)  / vec2(16)));
     }
     if (color.a < 0.2) {
         color = vec4(textureLod(sampler2D(colormap, mySampler), vec2(value, 0.5), 0.f).rgb, 1);

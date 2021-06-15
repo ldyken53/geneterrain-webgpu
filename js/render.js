@@ -33,9 +33,9 @@
           // nodeValue, nodeX, nodeY, nodeSize
           nodeData.push(parseFloat(nodeIDToValue[parts[0]]), parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3]));
           // Pushes value for cytoscape
-          nodeElements.push({ data: { id: parts[0] }, position: { x: 1200 * parseFloat(parts[1]), y: -1200 * parseFloat(parts[2]) }, locked: true });
+          nodeElements.push({ data: { id: parts[0], index: i }, position: { x: 1200 * parseFloat(parts[1]), y: -1200 * parseFloat(parts[2]) } });
+          i += 1;
         }
-        i += 1;
       }
       edgeReader.readAsText(document.getElementById("edge").files[0]);
     };
@@ -281,13 +281,52 @@
     },
   };
 
+  // Create an Arcball camera and view projection matrix
+  var camera = new ArcballCamera([0, 0, 3], [0, 0, 0], [0, 1, 0], 0.5, [
+    canvas.width,
+    canvas.height,
+  ]);
+
+  // Create a perspective projection matrix
+  var projection = mat4.perspective(
+    mat4.create(),
+    (50 * Math.PI) / 180.0,
+    canvas.width / canvas.height,
+    0.1,
+    100
+  );
+
+  // Matrix which will store the computed projection * view matrix
+  var projView = mat4.create();
+
+  // Controller utility for interacting with the canvas and driving the Arcball camera
+  var controller = new Controller();
+  controller.mousemove = function (prev, cur, evt) {
+    if (evt.buttons == 1) {
+      camera.rotate(prev, cur);
+    } else if (evt.buttons == 2) {
+      camera.pan([cur[0] - prev[0], prev[1] - cur[1]]);
+    }
+  };
+  controller.wheel = function (amt) {
+    camera.zoom(amt * 0.5);
+  };
+  controller.registerForCanvas(canvas);
+
   var overlayTexture = null;
   var clearOverlay = false;
   var showEdges = 0;
+  this.nodeDataBuffer = null;
 
   function drawCytoscape() {
     var cy = cytoscape({
+      minZoom: 1e-1,
+      maxZoom: 1e1,
+      wheelSensitivity: 0.1,
       container: document.getElementById('cy'),
+      layout: {
+        name: 'preset'
+      },
       style: [{
         selector: 'node',
         css: {
@@ -312,10 +351,29 @@
       ],
       elements: this.nodeElements
     });
+    cy.nodes().on('dragfreeon', reloadNodeData);
   }
 
-  async function render() {
-    // Testing
+  async function reloadNodeData(event) {
+    console.log(nodeData[event.target._private.data.index * 4], event.target._private.position.x / 1200, event.target._private.position.y / -1200);
+    nodeData[event.target._private.data.index * 4 + 1] = event.target._private.position.x / 1200;
+    nodeData[event.target._private.data.index * 4 + 2] = event.target._private.position.y / -1200;
+    await normalizeNodePositions();
+
+    var upload = device.createBuffer({
+      size: nodeData.length * 4,
+      usage: GPUBufferUsage.COPY_SRC,
+      mappedAtCreation: true,
+    });
+    new Float32Array(upload.getMappedRange()).set(new Float32Array(nodeData));
+    upload.unmap();
+
+    var commandEncoder = device.createCommandEncoder();
+    commandEncoder.copyBufferToBuffer(upload, 0, nodeDataBuffer, 0, nodeData.length * 4);
+    device.queue.submit([commandEncoder.finish()]);
+  }
+
+  async function normalizeNodePositions() {
     var maxX = 0;
     var maxY = 0;
     var minX = 0;
@@ -339,66 +397,38 @@
       nodeData[k * 4 + 1] = -8 + (nodeData[k * 4 + 1] - minX) / (maxX - minX) * 16;
       nodeData[k * 4 + 2] = -8 + (nodeData[k * 4 + 2] - minY) / (maxY - minY) * 16;
     }
+  }
 
-    var minValue = 0;
-    var maxValue = 0;
-    var values = [];
-    for (var i = 0; i < 1.01; i += 0.1) {
-      for (var j = 0; j < 1.01; j += 0.1) {
-        var value = 0;
-        for (var k = 0; k < 406; k++) {
-          var sqrDistance = ((j * 60 - 30) - nodeData[k * 4 + 1]) * ((j * 60 - 30) - nodeData[k * 4 + 1]) + ((i * 60 - 30) - nodeData[k * 4 + 2]) * ((i * 60 - 30) - nodeData[k * 4 + 2]);
-          value += nodeData[k * 4] / (sqrDistance + 1.0);
-        }
-        if (value > maxValue) {
-          maxValue = value;
-        }
-        if (value < minValue) {
-          minValue = value;
-        }
-        values.push(value);
-      }
-    }
+  async function render() {
+    await normalizeNodePositions();
+    // Testing
+    // var minValue = 0;
+    // var maxValue = 0;
+    // var values = [];
+    // for (var i = 0; i < 1.01; i += 0.1) {
+    //   for (var j = 0; j < 1.01; j += 0.1) {
+    //     var value = 0;
+    //     for (var k = 0; k < 406; k++) {
+    //       var sqrDistance = ((j * 60 - 30) - nodeData[k * 4 + 1]) * ((j * 60 - 30) - nodeData[k * 4 + 1]) + ((i * 60 - 30) - nodeData[k * 4 + 2]) * ((i * 60 - 30) - nodeData[k * 4 + 2]);
+    //       value += nodeData[k * 4] / (sqrDistance + 1.0);
+    //     }
+    //     if (value > maxValue) {
+    //       maxValue = value;
+    //     }
+    //     if (value < minValue) {
+    //       minValue = value;
+    //     }
+    //     values.push(value);
+    //   }
+    // }
 
     // Setup overlay
     var overlayCanvas = document.querySelector("[data-id='layer2-node']");
     overlayTexture = device.createTexture({
-      size: [canvas.width, canvas.height, 1],
+      size: [overlayCanvas.width, overlayCanvas.height, 1],
       format: "rgba8unorm",
       usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.STORAGE | GPUTextureUsage.RENDER_ATTACHMENT
     });
-
-    // Create an Arcball camera and view projection matrix
-    var camera = new ArcballCamera([0, 0, 3], [0, 0, 0], [0, 1, 0], 0.5, [
-      canvas.width,
-      canvas.height,
-    ]);
-
-    // Create a perspective projection matrix
-    var projection = mat4.perspective(
-      mat4.create(),
-      (50 * Math.PI) / 180.0,
-      canvas.width / canvas.height,
-      0.1,
-      100
-    );
-
-    // Matrix which will store the computed projection * view matrix
-    var projView = mat4.create();
-
-    // Controller utility for interacting with the canvas and driving the Arcball camera
-    var controller = new Controller();
-    controller.mousemove = function (prev, cur, evt) {
-      if (evt.buttons == 1) {
-        camera.rotate(prev, cur);
-      } else if (evt.buttons == 2) {
-        camera.pan([cur[0] - prev[0], prev[1] - cur[1]]);
-      }
-    };
-    controller.wheel = function (amt) {
-      camera.zoom(amt * 0.5);
-    };
-    controller.registerForCanvas(canvas);
 
     // Create our sampler
     const sampler = device.createSampler({
@@ -406,7 +436,7 @@
       minFilter: "linear",
     });
 
-    nodeDataBuffer = device.createBuffer({
+    this.nodeDataBuffer = device.createBuffer({
       size: nodeData.length * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
     });
@@ -420,7 +450,7 @@
     upload.unmap();
 
     var commandEncoder = device.createCommandEncoder();
-    commandEncoder.copyBufferToBuffer(upload, 0, nodeDataBuffer, 0, nodeData.length * 4);
+    commandEncoder.copyBufferToBuffer(upload, 0, this.nodeDataBuffer, 0, nodeData.length * 4);
     device.queue.submit([commandEncoder.finish()]);
 
     //render!
@@ -450,7 +480,7 @@
           {
             binding: 1,
             resource: {
-              buffer: nodeDataBuffer,
+              buffer: this.nodeDataBuffer,
             }
           },
           {
