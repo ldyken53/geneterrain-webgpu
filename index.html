@@ -28,7 +28,16 @@
     position: absolute;
     left: 4px;
     background-color: white;
-    display: none;
+    z-index: -2;
+  }
+
+  #background {
+    width: 1200px;
+    height: 1200px;
+    position: absolute;
+    left: 4px;
+    background-color: grey;
+    z-index: -1;
   }
 
   canvas {
@@ -38,6 +47,7 @@
 
 <body style="background-color:grey;">
   <h4>WebGPU Experiments</h4>
+  <div id="background"></div>
   <div id="cy"></div>
   <div id="cy2"></div>
   <canvas id="webgpu-canvas" class="img-fluid" style="position: absolute;

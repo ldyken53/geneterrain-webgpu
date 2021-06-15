@@ -82,7 +82,52 @@
     } else {
       showEdges = 0;
     }
-    drawCytoscape();
+    if (cy && cy2) {
+      cy.style([{
+        selector: 'node',
+        css: {
+          'content': 'data(id)',
+          'text-valign': 'top',
+          'text-halign': 'center',
+          'height': '10px',
+          'width': '10px',
+          'background-opacity': 0,
+          'border-width': 1,
+          'border-color': 'gray'
+        }
+      },
+      {
+        selector: 'edge',
+        css: {
+          'width': 'data(weight)',
+          'line-color': 'gray',
+          'opacity': showEdges
+        },
+      }
+      ]);
+      cy2.style([{
+        selector: 'node',
+        css: {
+          'content': 'data(id)',
+          'text-valign': 'top',
+          'text-halign': 'center',
+          'height': '10px',
+          'width': '10px',
+          'background-opacity': 0,
+          'border-width': 1,
+          'border-color': 'gray'
+        }
+      },
+      {
+        selector: 'edge',
+        css: {
+          'width': 'data(weight)',
+          'line-color': 'gray',
+          'opacity': showEdges
+        },
+      }
+      ]);
+    }
   };
 
   // Get a GPU device to render with
@@ -314,12 +359,14 @@
   controller.registerForCanvas(canvas);
 
   var overlayTexture = null;
-  var clearOverlay = false;
+  var overlayCanvas = null;
   var showEdges = 0;
+  var cy = null;
+  var cy2 = null;
   this.nodeDataBuffer = null;
 
   function drawCytoscape() {
-    var cy = cytoscape({
+    cy = cytoscape({
       minZoom: 1e-1,
       maxZoom: 1e1,
       wheelSensitivity: 0.1,
@@ -352,6 +399,35 @@
       elements: this.nodeElements
     });
     cy.nodes().on('dragfreeon', reloadNodeData);
+    cy2 = cytoscape({
+      container: document.getElementById('cy2'),
+      layout: {
+        name: 'preset'
+      },
+      style: [{
+        selector: 'node',
+        css: {
+          'content': 'data(id)',
+          'text-valign': 'top',
+          'text-halign': 'center',
+          'height': '10px',
+          'width': '10px',
+          'background-opacity': 0,
+          'border-width': 1,
+          'border-color': 'gray'
+        }
+      },
+      {
+        selector: 'edge',
+        css: {
+          'width': 'data(weight)',
+          'line-color': 'gray',
+          'opacity': showEdges
+        },
+      }
+      ],
+      elements: nodeElements
+    });
   }
 
   async function reloadNodeData(event) {
@@ -371,6 +447,8 @@
     var commandEncoder = device.createCommandEncoder();
     commandEncoder.copyBufferToBuffer(upload, 0, nodeDataBuffer, 0, nodeData.length * 4);
     device.queue.submit([commandEncoder.finish()]);
+
+    cy2.json({ elements: nodeElements });
   }
 
   async function normalizeNodePositions() {
@@ -423,7 +501,7 @@
     // }
 
     // Setup overlay
-    var overlayCanvas = document.querySelector("[data-id='layer2-node']");
+    overlayCanvas = document.querySelectorAll("[data-id='layer2-node']")[1];
     overlayTexture = device.createTexture({
       size: [overlayCanvas.width, overlayCanvas.height, 1],
       format: "rgba8unorm",
