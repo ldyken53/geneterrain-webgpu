@@ -76,6 +76,28 @@
     device.queue.submit([commandEncoder.finish()]);
   };
 
+  document.getElementById("width").oninput = () => {
+    var width = document.getElementById("width").value;
+    if (width > 10) {
+      width = width - 9;
+    } else {
+      width = width / 10;
+    }
+    var upload = device.createBuffer({
+      size: 4,
+      usage: GPUBufferUsage.COPY_SRC,
+      mappedAtCreation: true,
+    });
+    new Float32Array(upload.getMappedRange()).set([width]);
+    upload.unmap();
+
+    var commandEncoder = device.createCommandEncoder();
+
+    // Copy the upload buffer to our uniform buffer
+    commandEncoder.copyBufferToBuffer(upload, 0, widthBuffer, 0, 4);
+    device.queue.submit([commandEncoder.finish()]);
+  }
+
   document.getElementById("edges").onclick = () => {
     if (document.getElementById("edges").checked) {
       showEdges = 1;
@@ -207,6 +229,14 @@
           type: "uniform",
         },
       },
+      {
+        binding: 6,
+        // One or more stage flags, or'd together
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: {
+          type: "uniform",
+        },
+      },
     ],
   });
 
@@ -252,6 +282,12 @@
 
   // Create a buffer to store the overlay boolean
   var overlayBuffer = device.createBuffer({
+    size: 4,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
+  // Create a buffer to store the width factor
+  var widthBuffer = device.createBuffer({
     size: 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
@@ -364,6 +400,10 @@
   var cy = null;
   var cy2 = null;
   this.nodeDataBuffer = null;
+  var maxX = 0;
+  var maxY = 0;
+  var minX = 0;
+  var minY = 0;
 
   function drawCytoscape() {
     cy = cytoscape({
@@ -431,10 +471,21 @@
   }
 
   async function reloadNodeData(event) {
-    console.log(nodeData[event.target._private.data.index * 4], event.target._private.position.x / 1200, event.target._private.position.y / -1200);
-    nodeData[event.target._private.data.index * 4 + 1] = event.target._private.position.x / 1200;
-    nodeData[event.target._private.data.index * 4 + 2] = event.target._private.position.y / -1200;
-    await normalizeNodePositions();
+    var x = event.target._private.position.x / 1200;
+    var y = event.target._private.position.y / -1200;
+    if (x > maxX) {
+      maxX = x;
+    } else if (x < minX) {
+      minX = x;
+    }
+    if (y > maxY) {
+      maxY = y;
+    } else if (y < minY) {
+      minY = y;
+    }
+    console.log(nodeData[event.target._private.data.index * 4], x, y);
+    nodeData[event.target._private.data.index * 4 + 1] = -8 + (x - minX) / (maxX - minX) * 16;
+    nodeData[event.target._private.data.index * 4 + 2] = -8 + (y - minY) / (maxY - minY) * 16;
 
     var upload = device.createBuffer({
       size: nodeData.length * 4,
@@ -451,11 +502,7 @@
     cy2.json({ elements: nodeElements });
   }
 
-  async function normalizeNodePositions() {
-    var maxX = 0;
-    var maxY = 0;
-    var minX = 0;
-    var minY = 0;
+  async function render() {
     for (var k = 0; k < 406; k++) {
       if (nodeData[k * 4 + 1] > maxX) {
         maxX = nodeData[k * 4 + 1];
@@ -475,10 +522,7 @@
       nodeData[k * 4 + 1] = -8 + (nodeData[k * 4 + 1] - minX) / (maxX - minX) * 16;
       nodeData[k * 4 + 2] = -8 + (nodeData[k * 4 + 2] - minY) / (maxY - minY) * 16;
     }
-  }
 
-  async function render() {
-    await normalizeNodePositions();
     // Testing
     // var minValue = 0;
     // var maxValue = 0;
@@ -577,6 +621,12 @@
             binding: 5,
             resource: {
               buffer: overlayBuffer,
+            },
+          },
+          {
+            binding: 6,
+            resource: {
+              buffer: widthBuffer,
             },
           },
         ],

@@ -21,8 +21,11 @@ layout(set = 0, binding = 1, std430) buffer Nodes {
 layout(set = 0, binding = 2) uniform texture2D colormap;
 layout(set = 0, binding = 3) uniform sampler mySampler;
 uniform layout(binding = 4, rgba8) readonly image2D output_texture;
-layout(set = 0, binding = 5, std140) uniform overlay_bool {
+layout(set = 0, binding = 5) uniform overlay_bool {
     uint overlay;
+};
+layout(set = 0, binding = 6) uniform Width {
+    float width_factor;
 };
 
 
@@ -30,7 +33,7 @@ void main(void) {
     float value = 0;
     for (int i = 0; i < 406; i++) {
         float sqrDistance = (frag_pos.x - nodes[i].x) * (frag_pos.x - nodes[i].x) + (frag_pos.y - nodes[i].y) * (frag_pos.y - nodes[i].y);
-        value += nodes[i].value / (sqrDistance + 1.0);
+        value += nodes[i].value / (sqrDistance * width_factor + 1.0);
     }
     value = (value+5)/10;
     if (overlay > 0) {
