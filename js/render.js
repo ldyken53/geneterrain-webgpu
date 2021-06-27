@@ -8,7 +8,7 @@
   this.nodeData = [];
   this.nodeElements = [];
   this.layoutData = null;
-  this.widthFactor = 1;
+  this.widthFactor = document.getElementById("width").value;
   this.recomputeTerrain = false;
 
   function onSubmit() {
@@ -84,11 +84,11 @@
 
   document.getElementById("width").oninput = () => {
     var width = document.getElementById("width").value;
-    if (width > 10) {
-      width = width - 9;
-    } else {
-      width = width / 10;
-    }
+    // if (width > 10) {
+    //   width = width - 9;
+    // } else {
+    //   width = width / 10;
+    // }
     widthFactor = width;
     recomputeTerrain = true;
   }
@@ -599,6 +599,7 @@
 
       if (recomputeTerrain) {
         await terrainGenerator.computeTerrain(nodeData, widthFactor);
+        recomputeTerrain = false;
       }
 
       var bindGroup = device.createBindGroup({
