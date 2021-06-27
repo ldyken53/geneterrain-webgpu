@@ -373,6 +373,8 @@
   var maxY = 0;
   var minX = 0;
   var minY = 0;
+  var maxVal = 0;
+  var minVal = 0;
 
   function drawCytoscape() {
     cy = cytoscape({
@@ -521,6 +523,27 @@
     await gpuReadBuffer.mapAsync(GPUMapMode.READ);
     const arrayBuffer = gpuReadBuffer.getMappedRange();
     console.log(new Float32Array(arrayBuffer));
+
+    const rangeBuffer = device.createBuffer({
+      size: 2 * 4,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+    });
+    var commandEncoder = device.createCommandEncoder();
+    // Encode commands for copying buffer to buffer.
+    commandEncoder.copyBufferToBuffer(
+      terrainGenerator.rangeBuffer /* source buffer */,
+      0 /* source offset */,
+      rangeBuffer /* destination buffer */,
+      0 /* destination offset */,
+      2 * 4 /* size */
+    );
+
+    // Submit GPU commands.
+    device.queue.submit([commandEncoder.finish()]);
+
+    // Read buffer.
+    await rangeBuffer.mapAsync(GPUMapMode.READ);
+    console.log(new Int32Array(rangeBuffer.getMappedRange()));
 
     // // Testing
     // var minValue = 0;

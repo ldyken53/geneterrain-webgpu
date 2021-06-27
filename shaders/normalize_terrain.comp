@@ -1,0 +1,25 @@
+#version 450 core
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) buffer Pixels {
+    float pixels[];
+};
+
+layout(set = 0, binding = 1) uniform Params
+{
+    uint image_width;
+    uint image_height;
+    uint nodes_length;
+    float width_factor;
+};
+
+layout(set = 0, binding = 2) buffer Range {
+    ivec2 range;
+};
+
+
+void main(void) {
+    uint pixel_index = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * image_width;
+    pixels[pixel_index] = (pixels[pixel_index] - float(range.x)) / float(range.y - range.x);
+}

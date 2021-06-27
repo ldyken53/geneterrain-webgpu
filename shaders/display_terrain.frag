@@ -58,7 +58,7 @@ void main() {
     while (!outside_grid(p, volume_dims)) {
         const ivec3 v000 = ivec3(p);
         uint pixel_index = v000.x + v000.y * 600;
-        float value = (pixels[pixel_index] + 13) / 13 * 600;
+        float value = pixels[pixel_index] * 600;
         if (v000.z > 300) {
             if (value >= v000.z) {
                 color = vec4(textureLod(sampler2D(colormap, mySampler), vec2(value / 600, 0.5), 0.f).rgb, 1);

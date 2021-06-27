@@ -25,6 +25,10 @@ layout(set = 0, binding = 2, std430) buffer Pixels {
     float pixels[];
 };
 
+layout(set = 0, binding = 3) buffer Range {
+    ivec2 range;
+};
+
 
 void main(void) {
     uint pixel_index = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * image_width;
@@ -35,5 +39,7 @@ void main(void) {
         float sqrDistance = (x - nodes[i].x) * (x - nodes[i].x) + (y - nodes[i].y) * (y - nodes[i].y);
         value += nodes[i].value / (sqrDistance * width_factor + 1.0);
     }
+    atomicMin(range.x, int(floor(value)));
+    atomicMax(range.y, int(ceil(value)));
     pixels[pixel_index] = value;
 }
