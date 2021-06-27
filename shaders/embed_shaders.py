@@ -9,7 +9,7 @@ if len(sys.argv) != 2:
 
 glslc = sys.argv[1]
 output = "embedded_shaders.js"
-shaders = ["simple.vert", "simple.frag"]
+shaders = ["simple.vert", "simple.frag", "compute_terrain.comp", "display_terrain.vert", "display_terrain.frag"]
 
 try:
     os.stat(output)
