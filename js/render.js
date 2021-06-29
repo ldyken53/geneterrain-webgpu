@@ -52,14 +52,56 @@
     nodeReader.readAsText(document.getElementById("node").files[0]);
   }
 
+  async function onSave() {
+    const gpuReadBuffer = device.createBuffer({
+      size: canvas.width * canvas.height * 4,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+    });
+    var commandEncoder = device.createCommandEncoder();
+    // Encode commands for copying buffer to buffer.
+    commandEncoder.copyBufferToBuffer(
+      terrainGenerator.pixelValueBuffer /* source buffer */,
+      0 /* source offset */,
+      gpuReadBuffer /* destination buffer */,
+      0 /* destination offset */,
+      canvas.width * canvas.height * 4 /* size */
+    );
+
+    // Submit GPU commands.
+    const gpuCommands = commandEncoder.finish();
+    device.queue.submit([gpuCommands]);
+
+    // Read buffer.
+    await gpuReadBuffer.mapAsync(GPUMapMode.READ);
+    const arrayBuffer = gpuReadBuffer.getMappedRange();
+    var output = new Float32Array(arrayBuffer);
+    var outCanvas = document.getElementById('out-canvas');
+    var context = outCanvas.getContext('2d');
+    context.drawImage(colormapImage, 0, 0);
+    var colorData = context.getImageData(0, 0, 180, 1).data;
+    var imgData = context.createImageData(canvas.width, canvas.height);
+    for (var i = 0; i < canvas.height; i++) {
+      for (var j = 0; j < canvas.width; j++) {
+        var index = j + i * canvas.width;
+        var colorIndex = Math.trunc(output[j + (canvas.height - 1 - i) * canvas.width] * 180) * 4;
+        imgData.data[index * 4] = colorData[colorIndex];
+        imgData.data[index * 4 + 1] = colorData[colorIndex + 1];
+        imgData.data[index * 4 + 2] = colorData[colorIndex + 2];
+        imgData.data[index * 4 + 3] = colorData[colorIndex + 3];
+      }
+    }
+    context.putImageData(imgData, 0, 0);
+    outCanvas.toBlob(function (b) { saveAs(b, `terrain.png`); }, "image/png");
+  }
+
   document.getElementById("submit").onclick = onSubmit;
+  document.getElementById("save").onclick = onSave;
 
   // Get a context to display our rendered image on the canvas
   var canvas = document.getElementById("webgpu-canvas");
   var context = canvas.getContext("gpupresent");
 
   document.getElementById("overlay").onclick = () => {
-    overlayCanvas.toBlob(function (b) { saveAs(b, "test.png"); }, "image/png");
     var testCanvas = document.getElementById("test-canvas");
     var destCtx = testCanvas.getContext('2d');
     destCtx.drawImage(canvas, 0, 0);
@@ -500,29 +542,6 @@
     }
 
     await terrainGenerator.computeTerrain(nodeData, widthFactor);
-
-    const gpuReadBuffer = device.createBuffer({
-      size: canvas.width * canvas.height * 4,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
-    });
-    var commandEncoder = device.createCommandEncoder();
-    // Encode commands for copying buffer to buffer.
-    commandEncoder.copyBufferToBuffer(
-      terrainGenerator.pixelValueBuffer /* source buffer */,
-      0 /* source offset */,
-      gpuReadBuffer /* destination buffer */,
-      0 /* destination offset */,
-      canvas.width * canvas.height * 4 /* size */
-    );
-
-    // Submit GPU commands.
-    const gpuCommands = commandEncoder.finish();
-    device.queue.submit([gpuCommands]);
-
-    // Read buffer.
-    await gpuReadBuffer.mapAsync(GPUMapMode.READ);
-    const arrayBuffer = gpuReadBuffer.getMappedRange();
-    console.log(new Float32Array(arrayBuffer));
 
     const rangeBuffer = device.createBuffer({
       size: 2 * 4,
