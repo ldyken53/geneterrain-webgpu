@@ -26,7 +26,8 @@
     };
     const layoutReader = new FileReader();
     layoutReader.onload = function (event) {
-      layoutData = layoutReader.result.split("\r\n");
+      console.log(nodeIDToValue);
+      layoutData = layoutReader.result.split("\n");
       var i = 0;
       for (element of layoutData) {
         parts = element.split("\t");
@@ -43,7 +44,8 @@
     };
     const nodeReader = new FileReader();
     nodeReader.onload = function (event) {
-      var rawNodes = nodeReader.result.split("\r\n");
+      var rawNodes = nodeReader.result.split("\n");
+      console.log(rawNodes);
       for (element of rawNodes) {
         nodeIDToValue[element.split("\t")[0]] = element.split("\t")[1]
       }
@@ -195,12 +197,14 @@
 
   var terrainGenerator = new TerrainGenerator(device, canvas);
 
-  var vertModule = device.createShaderModule({ code: display_terrain_vert_spv });
-  var fragModule = device.createShaderModule({ code: display_terrain_frag_spv });
+  var vertModule3D = device.createShaderModule({ code: display_terrain_3d_vert_spv });
+  var fragModule3D = device.createShaderModule({ code: display_terrain_3d_frag_spv });
+  var vertModule2D = device.createShaderModule({ code: display_terrain_2d_vert_spv });
+  var fragModule2D = device.createShaderModule({ code: display_terrain_2d_frag_spv });
 
   // Setup shader modules
-  var vertex = {
-    module: vertModule,
+  var vertex3D = {
+    module: vertModule3D,
     entryPoint: "main",
     buffers: [
       {
@@ -215,9 +219,25 @@
       },
     ],
   };
+  var vertex2D = {
+    module: vertModule2D,
+    entryPoint: "main",
+    buffers: [
+      {
+        arrayStride: 4 * 4,
+        attributes: [
+          {
+            format: "float32x4",
+            offset: 0,
+            shaderLocation: 0,
+          }
+        ],
+      },
+    ],
+  };
 
   // Create the bind group layout
-  var displayTerrainBGLayout = device.createBindGroupLayout({
+  var displayTerrain3DBGLayout = device.createBindGroupLayout({
     entries: [
       {
         binding: 0,
@@ -248,14 +268,37 @@
       },
     ],
   });
+  var displayTerrain2DBGLayout = device.createBindGroupLayout({
+    entries: [
+      {
+        binding: 0,
+        // One or more stage flags, or'd together
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: {}
+      },
+      {
+        binding: 1,
+        // One or more stage flags, or'd together
+        visibility: GPUShaderStage.FRAGMENT,
+        sampler: {}
+      },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: {
+          type: "storage"
+        }
+      },
+    ],
+  });
 
   // Specify vertex data
-  var dataBuf = device.createBuffer({
+  var dataBuf3D = device.createBuffer({
     size: 12 * 3 * 3 * 4,
     usage: GPUBufferUsage.VERTEX,
     mappedAtCreation: true,
   });
-  new Float32Array(dataBuf.getMappedRange()).set([
+  new Float32Array(dataBuf3D.getMappedRange()).set([
     1, 0, 0, 0, 0, 0, 1, 1, 0,
 
     0, 1, 0, 1, 1, 0, 0, 0, 0,
@@ -280,7 +323,22 @@
 
     1, 0, 0, 1, 0, 1, 0, 0, 0,
   ]);
-  dataBuf.unmap();
+  dataBuf3D.unmap();
+  var dataBuf2D = device.createBuffer({
+    size: 6 * 4 * 4,
+    usage: GPUBufferUsage.VERTEX,
+    mappedAtCreation: true
+  });
+  // Interleaved positions and colors
+  new Float32Array(dataBuf2D.getMappedRange()).set([
+      1, -1, 0, 1,  // position
+      -1, -1, 0, 1, // position
+      -1, 1, 0, 1,   // position
+      1, -1, 0, 1,  // position
+      -1, 1, 0, 1, // position
+      1, 1, 0, 1,   // position
+  ]);
+  dataBuf2D.unmap();
 
   // Create a buffer to store the view parameters
   var viewParamsBuffer = device.createBuffer({
@@ -314,15 +372,18 @@
   });
 
   // Create render pipeline
-  var layout = device.createPipelineLayout({
-    bindGroupLayouts: [displayTerrainBGLayout],
+  var layout3D = device.createPipelineLayout({
+    bindGroupLayouts: [displayTerrain3DBGLayout],
+  });
+  var layout2D = device.createPipelineLayout({
+    bindGroupLayouts: [displayTerrain2DBGLayout],
   });
 
-  var renderPipeline = device.createRenderPipeline({
-    layout: layout,
-    vertex: vertex,
+  var renderPipeline3D = device.createRenderPipeline({
+    layout: layout3D,
+    vertex: vertex3D,
     fragment: {
-      module: fragModule,
+      module: fragModule3D,
       entryPoint: "main",
       targets: [
         {
@@ -333,6 +394,27 @@
     primitive: {
       topology: 'triangle-list',
       cullMode: "front",
+    },
+    depthStencil: {
+      format: depthFormat,
+      depthWriteEnabled: true,
+      depthCompare: "less",
+    },
+  });
+  var renderPipeline2D = device.createRenderPipeline({
+    layout: layout2D,
+    vertex: vertex2D,
+    fragment: {
+      module: fragModule2D,
+      entryPoint: "main",
+      targets: [
+        {
+          format: swapChainFormat
+        },
+      ],
+    },
+    primitive: {
+      topology: 'triangle-list',
     },
     depthStencil: {
       format: depthFormat,
@@ -486,16 +568,16 @@
   async function reloadNodeData(event) {
     var x = event.target._private.position.x / 1200;
     var y = event.target._private.position.y / -1200;
-    if (x > maxX) {
-      maxX = x;
-    } else if (x < minX) {
-      minX = x;
-    }
-    if (y > maxY) {
-      maxY = y;
-    } else if (y < minY) {
-      minY = y;
-    }
+    // if (x > maxX) {
+    //   maxX = x;
+    // } else if (x < minX) {
+    //   minX = x;
+    // }
+    // if (y > maxY) {
+    //   maxY = y;
+    // } else if (y < minY) {
+    //   minY = y;
+    // }
     console.log(nodeData[event.target._private.data.index * 4], x, y);
     nodeData[event.target._private.data.index * 4 + 1] = (x - minX) / (maxX - minX);
     nodeData[event.target._private.data.index * 4 + 2] = (y - minY) / (maxY - minY);
@@ -516,30 +598,32 @@
   }
 
   async function render() {
-    for (var k = 0; k < 406; k++) {
-      if (nodeData[k * 4 + 1] > maxX) {
-        maxX = nodeData[k * 4 + 1];
-      }
-      if (nodeData[k * 4 + 1] < minX) {
-        minX = nodeData[k * 4 + 1];
-      }
-      if (nodeData[k * 4 + 2] > maxY) {
-        maxY = nodeData[k * 4 + 2];
-      }
-      if (nodeData[k * 4 + 2] < minY) {
-        minY = nodeData[k * 4 + 2];
-      }
-    }
+    console.log(nodeData);
+    // for (var k = 0; k < 406; k++) {
+    //   if (nodeData[k * 4 + 1] > maxX) {
+    //     maxX = nodeData[k * 4 + 1];
+    //   }
+    //   if (nodeData[k * 4 + 1] < minX) {
+    //     minX = nodeData[k * 4 + 1];
+    //   }
+    //   if (nodeData[k * 4 + 2] > maxY) {
+    //     maxY = nodeData[k * 4 + 2];
+    //   }
+    //   if (nodeData[k * 4 + 2] < minY) {
+    //     minY = nodeData[k * 4 + 2];
+    //   }
+    // }
+    // console.log(minX, maxX, minY, maxY);
 
     // for (var k = 0; k < 406; k++) {
     //   nodeData[k * 4 + 1] = -8 + (nodeData[k * 4 + 1] - minX) / (maxX - minX) * 16;
     //   nodeData[k * 4 + 2] = -8 + (nodeData[k * 4 + 2] - minY) / (maxY - minY) * 16;
     // }
 
-    for (var k = 0; k < 406; k++) {
-      nodeData[k * 4 + 1] = (nodeData[k * 4 + 1] - minX) / (maxX - minX);
-      nodeData[k * 4 + 2] = (nodeData[k * 4 + 2] - minY) / (maxY - minY);
-    }
+    // for (var k = 0; k < 406; k++) {
+    //   nodeData[k * 4 + 1] = (nodeData[k * 4 + 1] - minX) / (maxX - minX);
+    //   nodeData[k * 4 + 2] = (nodeData[k * 4 + 2] - minY) / (maxY - minY);
+    // }
 
     await terrainGenerator.computeTerrain(nodeData, widthFactor);
 
@@ -621,64 +705,106 @@
         recomputeTerrain = false;
       }
 
-      var bindGroup = device.createBindGroup({
-        layout: displayTerrainBGLayout,
-        entries: [
-          {
-            binding: 0,
-            resource: {
-              buffer: viewParamsBuffer,
+      if (document.getElementById("3d").checked) {
+        var bindGroup = device.createBindGroup({
+          layout: displayTerrain3DBGLayout,
+          entries: [
+            {
+              binding: 0,
+              resource: {
+                buffer: viewParamsBuffer,
+              },
             },
-          },
-          {
-            binding: 1,
-            resource: colorTexture.createView(),
-          },
-          {
-            binding: 2,
-            resource: sampler,
-          },
-          {
-            binding: 3,
-            resource: {
-              buffer: terrainGenerator.pixelValueBuffer,
+            {
+              binding: 1,
+              resource: colorTexture.createView(),
+            },
+            {
+              binding: 2,
+              resource: sampler,
+            },
+            {
+              binding: 3,
+              resource: {
+                buffer: terrainGenerator.pixelValueBuffer,
+              }
             }
-          }
-        ],
-      });
-
-      renderPassDesc.colorAttachments[0].view = swapChain
-        .getCurrentTexture()
-        .createView();
-
-      // Compute and upload the combined projection and view matrix
-      projView = mat4.mul(projView, projection, camera.camera);
-      var upload = device.createBuffer({
-        size: 20 * 4,
-        usage: GPUBufferUsage.COPY_SRC,
-        mappedAtCreation: true,
-      });
-      var map = new Float32Array(upload.getMappedRange());
-      map.set(projView);
-      map.set(camera.eyePos(), 16);
-      upload.unmap();
-
-      var commandEncoder = device.createCommandEncoder();
-
-      // Copy the upload buffer to our uniform buffer
-      commandEncoder.copyBufferToBuffer(upload, 0, viewParamsBuffer, 0, 20 * 4);
-
-      var renderPass = commandEncoder.beginRenderPass(renderPassDesc);
-
-      renderPass.setPipeline(renderPipeline);
-      renderPass.setVertexBuffer(0, dataBuf);
-      // Set the bind group to its associated slot
-      renderPass.setBindGroup(0, bindGroup);
-      renderPass.draw(12 * 3, 1, 0, 0);
-
-      renderPass.endPass();
-      device.queue.submit([commandEncoder.finish()]);
-      requestAnimationFrame(frame);
+          ],
+        });
+  
+        renderPassDesc.colorAttachments[0].view = swapChain
+          .getCurrentTexture()
+          .createView();
+  
+        // Compute and upload the combined projection and view matrix
+        projView = mat4.mul(projView, projection, camera.camera);
+        var upload = device.createBuffer({
+          size: 20 * 4,
+          usage: GPUBufferUsage.COPY_SRC,
+          mappedAtCreation: true,
+        });
+        var map = new Float32Array(upload.getMappedRange());
+        map.set(projView);
+        map.set(camera.eyePos(), 16);
+        upload.unmap();
+  
+        var commandEncoder = device.createCommandEncoder();
+  
+        // Copy the upload buffer to our uniform buffer
+        commandEncoder.copyBufferToBuffer(upload, 0, viewParamsBuffer, 0, 20 * 4);
+  
+        var renderPass = commandEncoder.beginRenderPass(renderPassDesc);
+  
+        renderPass.setPipeline(renderPipeline3D);
+        renderPass.setVertexBuffer(0, dataBuf3D);
+        // Set the bind group to its associated slot
+        renderPass.setBindGroup(0, bindGroup);
+        renderPass.draw(12 * 3, 1, 0, 0);
+  
+        renderPass.endPass();
+        device.queue.submit([commandEncoder.finish()]);
+        requestAnimationFrame(frame);
+      }
+      else {
+        var bindGroup = device.createBindGroup({
+          layout: displayTerrain2DBGLayout,
+          entries: [
+            {
+              binding: 0,
+              resource: colorTexture.createView(),
+            },
+            {
+              binding: 1,
+              resource: sampler,
+            },
+            {
+              binding: 2,
+              resource: {
+                buffer: terrainGenerator.pixelValueBuffer,
+              }
+            }
+          ],
+        });
+  
+        renderPassDesc.colorAttachments[0].view = swapChain
+          .getCurrentTexture()
+          .createView();
+  
+        var commandEncoder = device.createCommandEncoder();
+  
+        var renderPass = commandEncoder.beginRenderPass(renderPassDesc);
+  
+        renderPass.setPipeline(renderPipeline2D);
+        renderPass.setVertexBuffer(0, dataBuf2D);
+        // Set the bind group to its associated slot
+        renderPass.setBindGroup(0, bindGroup);
+        renderPass.draw(6, 1, 0, 0);
+  
+        renderPass.endPass();
+        device.queue.submit([commandEncoder.finish()]);
+        requestAnimationFrame(frame);
+      }
+      
     };
     requestAnimationFrame(frame);
   }
