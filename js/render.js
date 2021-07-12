@@ -568,31 +568,23 @@
   async function reloadNodeData(event) {
     var x = event.target._private.position.x / 1200;
     var y = event.target._private.position.y / -1200;
-    // if (x > maxX) {
-    //   maxX = x;
-    // } else if (x < minX) {
-    //   minX = x;
-    // }
-    // if (y > maxY) {
-    //   maxY = y;
-    // } else if (y < minY) {
-    //   minY = y;
-    // }
+
     console.log(nodeData[event.target._private.data.index * 4], x, y);
-    nodeData[event.target._private.data.index * 4 + 1] = (x - minX) / (maxX - minX);
-    nodeData[event.target._private.data.index * 4 + 2] = (y - minY) / (maxY - minY);
+    nodeData[event.target._private.data.index * 4 + 1] = x;
+    nodeData[event.target._private.data.index * 4 + 2] = y;
 
-    var upload = device.createBuffer({
-      size: nodeData.length * 4,
-      usage: GPUBufferUsage.COPY_SRC,
-      mappedAtCreation: true,
-    });
-    new Float32Array(upload.getMappedRange()).set(new Float32Array(nodeData));
-    upload.unmap();
+    recomputeTerrain = true;
+    // var upload = device.createBuffer({
+    //   size: nodeData.length * 4,
+    //   usage: GPUBufferUsage.COPY_SRC,
+    //   mappedAtCreation: true,
+    // });
+    // new Float32Array(upload.getMappedRange()).set(new Float32Array(nodeData));
+    // upload.unmap();
 
-    var commandEncoder = device.createCommandEncoder();
-    commandEncoder.copyBufferToBuffer(upload, 0, nodeDataBuffer, 0, nodeData.length * 4);
-    device.queue.submit([commandEncoder.finish()]);
+    // var commandEncoder = device.createCommandEncoder();
+    // commandEncoder.copyBufferToBuffer(upload, 0, nodeDataBuffer, 0, nodeData.length * 4);
+    // device.queue.submit([commandEncoder.finish()]);
 
     cy2.json({ elements: nodeElements });
   }
