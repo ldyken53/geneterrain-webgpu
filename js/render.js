@@ -266,6 +266,13 @@
           type: "storage"
         }
       },
+      {
+        binding: 4,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: {
+          type: "uniform",
+        },
+      }
     ],
   });
   var displayTerrain2DBGLayout = device.createBindGroupLayout({
@@ -331,12 +338,12 @@
   });
   // Interleaved positions and colors
   new Float32Array(dataBuf2D.getMappedRange()).set([
-      1, -1, 0, 1,  // position
-      -1, -1, 0, 1, // position
-      -1, 1, 0, 1,   // position
-      1, -1, 0, 1,  // position
-      -1, 1, 0, 1, // position
-      1, 1, 0, 1,   // position
+    1, -1, 0, 1,  // position
+    -1, -1, 0, 1, // position
+    -1, 1, 0, 1,   // position
+    1, -1, 0, 1,  // position
+    -1, 1, 0, 1, // position
+    1, 1, 0, 1,   // position
   ]);
   dataBuf2D.unmap();
 
@@ -345,6 +352,14 @@
     size: 20 * 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
+
+  var imageSizeBuffer = device.createBuffer({
+    size: 2 * 4,
+    usage: GPUBufferUsage.UNIFORM,
+    mappedAtCreation: true
+  });
+  new Uint32Array(imageSizeBuffer.getMappedRange()).set([canvas.width, canvas.height]);
+  imageSizeBuffer.unmap();
 
   // Create a buffer to store the overlay boolean
   var overlayBuffer = device.createBuffer({
@@ -720,14 +735,20 @@
               resource: {
                 buffer: terrainGenerator.pixelValueBuffer,
               }
+            },
+            {
+              binding: 4,
+              resource: {
+                buffer: imageSizeBuffer,
+              }
             }
           ],
         });
-  
+
         renderPassDesc.colorAttachments[0].view = swapChain
           .getCurrentTexture()
           .createView();
-  
+
         // Compute and upload the combined projection and view matrix
         projView = mat4.mul(projView, projection, camera.camera);
         var upload = device.createBuffer({
@@ -739,20 +760,20 @@
         map.set(projView);
         map.set(camera.eyePos(), 16);
         upload.unmap();
-  
+
         var commandEncoder = device.createCommandEncoder();
-  
+
         // Copy the upload buffer to our uniform buffer
         commandEncoder.copyBufferToBuffer(upload, 0, viewParamsBuffer, 0, 20 * 4);
-  
+
         var renderPass = commandEncoder.beginRenderPass(renderPassDesc);
-  
+
         renderPass.setPipeline(renderPipeline3D);
         renderPass.setVertexBuffer(0, dataBuf3D);
         // Set the bind group to its associated slot
         renderPass.setBindGroup(0, bindGroup);
         renderPass.draw(12 * 3, 1, 0, 0);
-  
+
         renderPass.endPass();
         device.queue.submit([commandEncoder.finish()]);
         requestAnimationFrame(frame);
@@ -777,26 +798,26 @@
             }
           ],
         });
-  
+
         renderPassDesc.colorAttachments[0].view = swapChain
           .getCurrentTexture()
           .createView();
-  
+
         var commandEncoder = device.createCommandEncoder();
-  
+
         var renderPass = commandEncoder.beginRenderPass(renderPassDesc);
-  
+
         renderPass.setPipeline(renderPipeline2D);
         renderPass.setVertexBuffer(0, dataBuf2D);
         // Set the bind group to its associated slot
         renderPass.setBindGroup(0, bindGroup);
         renderPass.draw(6, 1, 0, 0);
-  
+
         renderPass.endPass();
         device.queue.submit([commandEncoder.finish()]);
         requestAnimationFrame(frame);
       }
-      
+
     };
     requestAnimationFrame(frame);
   }

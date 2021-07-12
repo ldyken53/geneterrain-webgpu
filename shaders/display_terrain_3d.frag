@@ -8,6 +8,10 @@ layout(set = 0, binding = 2) uniform sampler mySampler;
 layout(set = 0, binding = 3, std430) buffer Pixels {
     float pixels[];
 };
+layout(set = 0, binding = 4) uniform ImageSize {
+    uint image_width;
+    uint image_height;
+};
 
 layout(location = 0) out vec4 color;
 
@@ -29,7 +33,8 @@ bool outside_grid(const vec3 p, vec3 volumeDims) {
 
 void main() {
     vec3 ray_dir = normalize(vray_dir);
-    const vec3 volume_dims = vec3(600, 600, 600);
+    uint longest_axis = max(image_width, image_height);
+    const vec3 volume_dims = vec3(image_width, image_height, longest_axis);
 	const vec3 vol_eye = transformed_eye * volume_dims;
     const vec3 grid_ray_dir = normalize(ray_dir * volume_dims);
 
@@ -57,20 +62,20 @@ void main() {
     // Traverse the grid 
     while (!outside_grid(p, volume_dims)) {
         const ivec3 v000 = ivec3(p);
-        uint pixel_index = v000.x + v000.y * 600;
-        float value = pixels[pixel_index] * 600;
-        if (v000.z > 300) {
-            if (value >= v000.z) {
-                color = vec4(textureLod(sampler2D(colormap, mySampler), vec2(value / 600, 0.5), 0.f).rgb, 1);
+        uint pixel_index = v000.x + v000.y * image_width;
+        float value = pixels[pixel_index];
+        if (v000.z > longest_axis / 2.0) {
+            if (value * longest_axis >= v000.z) {
+                color = vec4(textureLod(sampler2D(colormap, mySampler), vec2(value, 0.5), 0.f).rgb, 1);
                 return;
             }
-        } else if (v000.z < 300) {
-            if (value <= v000.z) {
-                color = vec4(textureLod(sampler2D(colormap, mySampler), vec2(value / 600, 0.5), 0.f).rgb, 1);
+        } else if (v000.z < longest_axis / 2.0) {
+            if (value * longest_axis <= v000.z) {
+                color = vec4(textureLod(sampler2D(colormap, mySampler), vec2(value, 0.5), 0.f).rgb, 1);
                 return;
             }
         } else {
-            color = vec4(textureLod(sampler2D(colormap, mySampler), vec2(value / 600, 0.5), 0.f).rgb, 1);
+            color = vec4(textureLod(sampler2D(colormap, mySampler), vec2(value, 0.5), 0.f).rgb, 1);
             return;
         }
 
