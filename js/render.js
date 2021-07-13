@@ -6,11 +6,13 @@
 
   this.nodeIDToValue = {};
   this.nodeData = [];
+  this.nodeDataOriginal = [];
   this.nodeElements = [];
   this.layoutData = null;
   this.widthFactor = document.getElementById("width").value;
   this.recomputeTerrain = false;
   this.translation = [0, 0, 1, 1];
+
 
   function onSubmit() {
     const edgeReader = new FileReader();
@@ -37,7 +39,7 @@
           // nodeValue, nodeX, nodeY, nodeSize
           nodeData.push(parseFloat(nodeIDToValue[parts[0]]), parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3]));
           // Pushes value for cytoscape
-          nodeElements.push({ data: { id: parts[0], index: i }, position: { x: 1200 * parseFloat(parts[1]), y: -1200 * parseFloat(parts[2]) } });
+          nodeElements.push({ data: { id: parts[0], index: i, opacity: 1 }, position: { x: 1200 * parseFloat(parts[1]), y: -1200 * parseFloat(parts[2]) } });
           i += 1;
         }
       }
@@ -108,24 +110,47 @@
     var testCanvas = document.getElementById("test-canvas");
     var destCtx = testCanvas.getContext('2d');
     destCtx.drawImage(canvas, 0, 0);
-    var upload = device.createBuffer({
-      size: 4,
-      usage: GPUBufferUsage.COPY_SRC,
-      mappedAtCreation: true,
-    });
-    var overlay = 0;
-    if (document.getElementById("overlay").checked) {
-      overlay = 1;
-    }
-    new Float32Array(upload.getMappedRange()).set([overlay]);
-    upload.unmap();
-
-    var commandEncoder = device.createCommandEncoder();
-
-    // Copy the upload buffer to our uniform buffer
-    commandEncoder.copyBufferToBuffer(upload, 0, overlayBuffer, 0, 4);
-    device.queue.submit([commandEncoder.finish()]);
   };
+
+  document.getElementById("hideSelected").onclick = () => {
+    if (document.getElementById("hideSelected").checked) {
+      for (node of cy.nodes(':selected')) {
+        nodeData[node._private.data.index * 4] = 0;
+        node._private.data.opacity = 0;
+      }
+    } else {
+      for (node of cy.nodes(':selected')) {
+        nodeData[node._private.data.index * 4] = nodeDataOriginal[node._private.data.index * 4];
+        node._private.data.opacity = 1;
+      }
+    }
+    reloadCytoscapeStyle();
+    recomputeTerrain = true;
+  }
+
+  document.getElementById("showSelected").onclick = () => {
+    if (document.getElementById("showSelected").checked) {
+      for (var i = 0; i < nodeData.length; i += 4) {
+        nodeData[i] = 0;
+      }
+      for (node of cy.nodes()) {
+        node._private.data.opacity = 0;
+      }
+      for (node of cy.nodes(':selected')) {
+        nodeData[node._private.data.index * 4] = nodeDataOriginal[node._private.data.index * 4];
+        node._private.data.opacity = 1;
+      }
+    } else {
+      for (var i = 0; i < nodeData.length; i += 4) {
+        nodeData[i] = nodeDataOriginal[i];
+      }
+      for (node of cy.nodes()) {
+        node._private.data.opacity = 1;
+      }
+    }
+    reloadCytoscapeStyle();
+    recomputeTerrain = true;
+  }
 
   document.getElementById("width").oninput = () => {
     var width = document.getElementById("width").value;
@@ -138,12 +163,7 @@
     recomputeTerrain = true;
   }
 
-  document.getElementById("edges").onclick = () => {
-    if (document.getElementById("edges").checked) {
-      showEdges = 1;
-    } else {
-      showEdges = 0;
-    }
+  function reloadCytoscapeStyle() {
     if (cy) {
       cy.style([{
         selector: 'node',
@@ -153,9 +173,19 @@
           'text-halign': 'center',
           'height': '10px',
           'width': '10px',
-          'background-opacity': 0,
+          'background-opacity': 1,
           'border-width': 1,
-          'border-color': 'gray'
+          'border-color': 'gray',
+          'opacity': 'data(opacity)'
+        }
+      },
+      {
+        selector: ':selected',
+        css: {
+          'background-color': 'SteelBlue',
+          'line-color': 'black',
+          'target-arrow-color': 'black',
+          'source-arrow-color': 'black',
         }
       },
       {
@@ -168,6 +198,15 @@
       }
       ]);
     }
+  }
+
+  document.getElementById("edges").onclick = () => {
+    if (document.getElementById("edges").checked) {
+      showEdges = 1;
+    } else {
+      showEdges = 0;
+    }
+    reloadCytoscapeStyle();
   };
 
   // Get a GPU device to render with
@@ -352,12 +391,6 @@
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  // Create a buffer to store the overlay boolean
-  var overlayBuffer = device.createBuffer({
-    size: 4,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-
   // Setup render outputs
   var swapChainFormat = "bgra8unorm";
   var swapChain = context.configureSwapChain({
@@ -493,17 +526,8 @@
   };
   controller.registerForCanvas(canvas);
 
-  var overlayTexture = null;
-  var overlayCanvas = null;
   var showEdges = 0;
   var cy = null;
-  this.nodeDataBuffer = null;
-  var maxX = 0;
-  var maxY = 0;
-  var minX = 0;
-  var minY = 0;
-  var maxVal = 0;
-  var minVal = 0;
 
   function drawCytoscape() {
     cy = cytoscape({
@@ -525,7 +549,7 @@
           'background-opacity': 1,
           'border-width': 1,
           'border-color': 'gray',
-          // 'opacity': showNodes
+          'opacity': 'data(opacity)'
         }
       },
       {
@@ -535,7 +559,6 @@
           'line-color': 'black',
           'target-arrow-color': 'black',
           'source-arrow-color': 'black',
-          // 'opacity': showSelected
         }
       },
       {
@@ -592,6 +615,7 @@
 
   async function render() {
     console.log(nodeData);
+    nodeDataOriginal = [...nodeData];
     // for (var k = 0; k < 406; k++) {
     //   if (nodeData[k * 4 + 1] > maxX) {
     //     maxX = nodeData[k * 4 + 1];
@@ -673,12 +697,13 @@
     cy.zoom(0.5);
     cy.panBy({ x: 0, y: 600 });
     cy.on('pan', reloadViewBox);
-    console.log(cy.extent());
-    console.log(cy.zoom());
-    console.log(cy.pan());
+    var overlayCanvas = document.querySelector("[data-id='layer2-node']");
     //render!
     var frame = async function () {
       if (document.getElementById("overlay").checked) {
+        var outCanvas = document.getElementById('out-canvas');
+        var context = outCanvas.getContext('2d');
+        context.drawImage(overlayCanvas, 0, 0);
       }
 
       if (recomputeTerrain) {
