@@ -13,12 +13,13 @@ layout(set = 0, binding = 0, std430) buffer Nodes {
     Node nodes[];
 };
 
-layout(set = 0, binding = 1) uniform Params
+layout(set = 0, binding = 1, std140) uniform Params
 {
     uint image_width;
     uint image_height;
     uint nodes_length;
     float width_factor;
+    vec4 view_box;
 };
 
 layout(set = 0, binding = 2, std430) buffer Pixels {
@@ -34,6 +35,8 @@ void main(void) {
     uint pixel_index = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * image_width;
     float x = float(gl_GlobalInvocationID.x) / float(image_width);
     float y = float(gl_GlobalInvocationID.y) / float(image_height);
+    x = x * (view_box.z - view_box.x) + view_box.x;
+    y = y * (view_box.w - view_box.y) + view_box.y;
     float value = 0;
     for (int i = 0; i < nodes_length; i++) {
         float sqrDistance = (x - nodes[i].x) * (x - nodes[i].x) + (y - nodes[i].y) * (y - nodes[i].y);

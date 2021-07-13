@@ -10,6 +10,7 @@
   this.layoutData = null;
   this.widthFactor = document.getElementById("width").value;
   this.recomputeTerrain = false;
+  this.translation = [0, 0, 1, 1];
 
   function onSubmit() {
     const edgeReader = new FileReader();
@@ -143,30 +144,8 @@
     } else {
       showEdges = 0;
     }
-    if (cy && cy2) {
+    if (cy) {
       cy.style([{
-        selector: 'node',
-        css: {
-          'content': 'data(id)',
-          'text-valign': 'top',
-          'text-halign': 'center',
-          'height': '10px',
-          'width': '10px',
-          'background-opacity': 0,
-          'border-width': 1,
-          'border-color': 'gray'
-        }
-      },
-      {
-        selector: 'edge',
-        css: {
-          'width': 'data(weight)',
-          'line-color': 'gray',
-          'opacity': showEdges
-        },
-      }
-      ]);
-      cy2.style([{
         selector: 'node',
         css: {
           'content': 'data(id)',
@@ -296,6 +275,13 @@
           type: "storage"
         }
       },
+      {
+        binding: 3,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: {
+          type: "uniform",
+        },
+      }
     ],
   });
 
@@ -360,6 +346,11 @@
   });
   new Uint32Array(imageSizeBuffer.getMappedRange()).set([canvas.width, canvas.height]);
   imageSizeBuffer.unmap();
+
+  var translationBuffer = device.createBuffer({
+    size: 2 * 4,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
 
   // Create a buffer to store the overlay boolean
   var overlayBuffer = device.createBuffer({
@@ -506,7 +497,6 @@
   var overlayCanvas = null;
   var showEdges = 0;
   var cy = null;
-  var cy2 = null;
   this.nodeDataBuffer = null;
   var maxX = 0;
   var maxY = 0;
@@ -532,9 +522,20 @@
           'text-halign': 'center',
           'height': '10px',
           'width': '10px',
-          'background-opacity': 0,
+          'background-opacity': 1,
           'border-width': 1,
-          'border-color': 'gray'
+          'border-color': 'gray',
+          // 'opacity': showNodes
+        }
+      },
+      {
+        selector: ':selected',
+        css: {
+          'background-color': 'SteelBlue',
+          'line-color': 'black',
+          'target-arrow-color': 'black',
+          'source-arrow-color': 'black',
+          // 'opacity': showSelected
         }
       },
       {
@@ -549,35 +550,21 @@
       elements: this.nodeElements
     });
     cy.nodes().on('dragfreeon', reloadNodeData);
-    cy2 = cytoscape({
-      container: document.getElementById('cy2'),
-      layout: {
-        name: 'preset'
-      },
-      style: [{
-        selector: 'node',
-        css: {
-          'content': 'data(id)',
-          'text-valign': 'top',
-          'text-halign': 'center',
-          'height': '10px',
-          'width': '10px',
-          'background-opacity': 0,
-          'border-width': 1,
-          'border-color': 'gray'
-        }
-      },
-      {
-        selector: 'edge',
-        css: {
-          'width': 'data(weight)',
-          'line-color': 'gray',
-          'opacity': showEdges
-        },
-      }
-      ],
-      elements: nodeElements
-    });
+  }
+
+  async function reloadViewBox(event) {
+    // var upload = device.createBuffer({
+    //   size: 2 * 4,
+    //   usage: GPUBufferUsage.COPY_SRC,
+    //   mappedAtCreation: true,
+    // });
+    // new Float32Array(upload.getMappedRange()).set([cy.extent().x1 / 1200.0, cy.extent().y2 / -1200.0]);
+    // upload.unmap();
+    translation = [cy.extent().x1 / 1200.0, cy.extent().y2 / -1200.0, cy.extent().x2 / 1200.0, cy.extent().y1 / -1200.0];
+    recomputeTerrain = true;
+    // var commandEncoder = device.createCommandEncoder();
+    // commandEncoder.copyBufferToBuffer(upload, 0, translationBuffer, 0, 2 * 4);
+    // device.queue.submit([commandEncoder.finish()]);
   }
 
   async function reloadNodeData(event) {
@@ -601,7 +588,6 @@
     // commandEncoder.copyBufferToBuffer(upload, 0, nodeDataBuffer, 0, nodeData.length * 4);
     // device.queue.submit([commandEncoder.finish()]);
 
-    cy2.json({ elements: nodeElements });
   }
 
   async function render() {
@@ -632,7 +618,7 @@
     //   nodeData[k * 4 + 2] = (nodeData[k * 4 + 2] - minY) / (maxY - minY);
     // }
 
-    await terrainGenerator.computeTerrain(nodeData, widthFactor);
+    await terrainGenerator.computeTerrain(nodeData, widthFactor, translation);
 
     const rangeBuffer = device.createBuffer({
       size: 2 * 4,
@@ -678,37 +664,25 @@
     // console.log(values);
     // console.log(minValue, maxValue);
 
-    // Setup overlay
-    overlayCanvas = document.querySelectorAll("[data-id='layer2-node']")[1];
-    overlayTexture = device.createTexture({
-      size: [overlayCanvas.width, overlayCanvas.height, 1],
-      format: "rgba8unorm",
-      usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.STORAGE | GPUTextureUsage.RENDER_ATTACHMENT
-    });
-
     // Create our sampler
     const sampler = device.createSampler({
       magFilter: "linear",
       minFilter: "linear",
     });
-
+    cy.reset();
+    cy.zoom(0.5);
+    cy.panBy({ x: 0, y: 600 });
+    cy.on('pan', reloadViewBox);
+    console.log(cy.extent());
+    console.log(cy.zoom());
+    console.log(cy.pan());
     //render!
     var frame = async function () {
       if (document.getElementById("overlay").checked) {
-        // Setup overlay
-        var overlayImage = new Image();
-        overlayImage.src = overlayCanvas.toDataURL();
-        await overlayImage.decode();
-        const imageBitmap = await createImageBitmap(overlayImage);
-        device.queue.copyExternalImageToTexture(
-          { source: imageBitmap },
-          { texture: overlayTexture },
-          [imageBitmap.width, imageBitmap.height, 1]
-        );
       }
 
       if (recomputeTerrain) {
-        await terrainGenerator.computeTerrain(nodeData, widthFactor);
+        await terrainGenerator.computeTerrain(nodeData, widthFactor, translation);
         recomputeTerrain = false;
       }
 
@@ -794,6 +768,12 @@
               binding: 2,
               resource: {
                 buffer: terrainGenerator.pixelValueBuffer,
+              }
+            },
+            {
+              binding: 3,
+              resource: {
+                buffer: translationBuffer,
               }
             }
           ],

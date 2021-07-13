@@ -87,7 +87,7 @@ var TerrainGenerator = function (device, canvas) {
 
     // Create a buffer to store the params, output, and min/max
     this.paramsBuffer = device.createBuffer({
-        size: 4 * 4,
+        size: 8 * 4,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
 
@@ -98,8 +98,8 @@ var TerrainGenerator = function (device, canvas) {
 };
 
 TerrainGenerator.prototype.computeTerrain =
-    async function (nodeData, widthFactor) {
-        console.log(widthFactor);
+    async function (nodeData, widthFactor, translation) {
+        console.log(translation);
         // Set up node data buffer
         this.nodeDataBuffer = this.device.createBuffer({
             size: nodeData.length * 4,
@@ -117,16 +117,16 @@ TerrainGenerator.prototype.computeTerrain =
 
         // Set up params (image width, height, node length, and width factor)
         var upload = this.device.createBuffer({
-            size: 4 * 4,
+            size: 8 * 4,
             usage: GPUBufferUsage.COPY_SRC,
             mappedAtCreation: true,
         });
         var mapping = upload.getMappedRange();
         new Uint32Array(mapping).set([this.canvas.width, this.canvas.height, nodeData.length / 4]);
-        new Float32Array(mapping).set([widthFactor], 3);
+        new Float32Array(mapping).set([widthFactor, translation[0], translation[1], translation[2], translation[3]], 3);
         upload.unmap();
         var commandEncoder = this.device.createCommandEncoder();
-        commandEncoder.copyBufferToBuffer(upload, 0, this.paramsBuffer, 0, 4 * 4);
+        commandEncoder.copyBufferToBuffer(upload, 0, this.paramsBuffer, 0, 8 * 4);
         // Create bind group
         var bindGroup = this.device.createBindGroup({
             layout: this.computeTerrainBGLayout,
