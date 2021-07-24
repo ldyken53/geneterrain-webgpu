@@ -8,6 +8,7 @@
   this.nodeData = [];
   this.nodeDataOriginal = [];
   this.nodeElements = [];
+  this.edgeElements = [];
   this.layoutData = null;
   this.widthFactor = document.getElementById("width").value;
   this.recomputeTerrain = false;
@@ -19,7 +20,7 @@
   function onSubmit() {
     const edgeReader = new FileReader();
     edgeReader.onload = async function (event) {
-      edgeData = edgeReader.result.split("\r\n");
+      edgeData = edgeReader.result.split("\n");
       for (element of edgeData) {
         parts = element.split("\t");
         if (nodeIDToValue[parts[0]] && nodeIDToValue[parts[1]]) {
@@ -195,8 +196,7 @@
         selector: 'edge',
         css: {
           'width': 'data(weight)',
-          'line-color': 'gray',
-          'opacity': showEdges
+          'line-color': 'gray'
         },
       }
       ]);
@@ -205,9 +205,9 @@
 
   document.getElementById("edges").onclick = () => {
     if (document.getElementById("edges").checked) {
-      showEdges = 1;
+      edgeElements.restore();
     } else {
-      showEdges = 0;
+      edgeElements = edgeElements.remove();
     }
     reloadCytoscapeStyle();
   };
@@ -529,7 +529,6 @@
   };
   controller.registerForCanvas(canvas);
 
-  var showEdges = 0;
   var cy = null;
 
   function drawCytoscape() {
@@ -569,14 +568,14 @@
         selector: 'edge',
         css: {
           'width': 'data(weight)',
-          'line-color': 'gray',
-          'opacity': showEdges
+          'line-color': 'gray'
         },
       }
       ],
       elements: this.nodeElements
     });
     cy.nodes().on('dragfreeon', reloadNodeData);
+    edgeElements = cy.edges().remove();
   }
 
   async function reloadViewBox(event) {
