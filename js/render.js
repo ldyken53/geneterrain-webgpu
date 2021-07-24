@@ -12,7 +12,9 @@
   this.widthFactor = document.getElementById("width").value;
   this.recomputeTerrain = false;
   this.translation = [0, 0, 1, 1];
-
+  this.fontSize = 24;
+  this.nodeHeight = 16;
+  this.nodeWidth = 16;
 
   function onSubmit() {
     const edgeReader = new FileReader();
@@ -169,10 +171,11 @@
         selector: 'node',
         css: {
           'content': 'data(id)',
+          'font-size': fontSize,
           'text-valign': 'top',
           'text-halign': 'center',
-          'height': '10px',
-          'width': '10px',
+          'height': nodeHeight,
+          'width': nodeWidth,
           'background-opacity': 1,
           'border-width': 1,
           'border-color': 'gray',
@@ -544,8 +547,9 @@
           'content': 'data(id)',
           'text-valign': 'top',
           'text-halign': 'center',
-          'height': '10px',
-          'width': '10px',
+          'font-size': fontSize,
+          'height': nodeHeight,
+          'width': nodeWidth,
           'background-opacity': 1,
           'border-width': 1,
           'border-color': 'gray',
@@ -585,6 +589,10 @@
     // upload.unmap();
     translation = [cy.extent().x1 / 1200.0, cy.extent().y2 / -1200.0, cy.extent().x2 / 1200.0, cy.extent().y1 / -1200.0];
     recomputeTerrain = true;
+    fontSize = (1 / cy.zoom()) * 0.5 * 24;
+    nodeHeight = (1 / cy.zoom()) * 0.5 * 16;
+    nodeWidth = (1 / cy.zoom()) * 0.5 * 16;
+    reloadCytoscapeStyle();
     // var commandEncoder = device.createCommandEncoder();
     // commandEncoder.copyBufferToBuffer(upload, 0, translationBuffer, 0, 2 * 4);
     // device.queue.submit([commandEncoder.finish()]);
