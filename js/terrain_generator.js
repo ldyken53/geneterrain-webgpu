@@ -41,7 +41,7 @@ var TerrainGenerator = function (device, canvas) {
         }),
         compute: {
             module: device.createShaderModule({
-                code: compute_terrain_comp_spv,
+                code: compute_terrain,
             }),
             entryPoint: "main",
         },
@@ -79,7 +79,7 @@ var TerrainGenerator = function (device, canvas) {
         }),
         compute: {
             module: device.createShaderModule({
-                code: normalize_terrain_comp_spv,
+                code: normalize_terrain,
             }),
             entryPoint: "main",
         },
