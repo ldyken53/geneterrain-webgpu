@@ -13,7 +13,8 @@ layout(location = 0) out vec4 color;
 
 
 void main(void) {
-    uint pixel_index = uint(frag_pos.x + 300 + frag_pos.y * 600);
+    uvec4 ufrag_pos = uvec4(frag_pos);
+    uint pixel_index = uint(ufrag_pos.x + ufrag_pos.y * 600);
     float value = pixels[pixel_index];
 
     color = vec4(textureLod(sampler2D(colormap, mySampler), vec2(value, 0.5), 0.f).rgb, 1);
