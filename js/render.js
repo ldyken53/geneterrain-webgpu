@@ -578,7 +578,7 @@
     fontSize = (1 / cy.zoom()) * 0.5 * 24;
     nodeHeight = (1 / cy.zoom()) * 0.5 * 16;
     nodeWidth = (1 / cy.zoom()) * 0.5 * 16;
-    reloadCytoscapeStyle();
+    // reloadCytoscapeStyle();
     // var commandEncoder = device.createCommandEncoder();
     // commandEncoder.copyBufferToBuffer(upload, 0, translationBuffer, 0, 2 * 4);
     // device.queue.submit([commandEncoder.finish()]);
@@ -694,6 +694,7 @@
     var overlayCanvas = document.querySelector("[data-id='layer2-node']");
     //render!
     var frame = async function () {
+      reloadCytoscapeStyle();
       if (document.getElementById("overlay").checked) {
         var outCanvas = document.getElementById('out-canvas');
         var context = outCanvas.getContext('2d');
@@ -701,7 +702,9 @@
       }
 
       if (recomputeTerrain) {
+        start = performance.now()
         await terrainGenerator.computeTerrain(nodeData, widthFactor, translation);
+        console.log(performance.now() - start);
         recomputeTerrain = false;
       }
 
