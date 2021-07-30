@@ -4,6 +4,8 @@ shaders = [
     "normalize_terrain.wgsl",
     "display_2d_vert.wgsl",
     "display_2d_frag.wgsl",
+    "display_3d_vert.wgsl",
+    "display_3d_frag.wgsl",
 ]
 compiled_shaders = ""
 

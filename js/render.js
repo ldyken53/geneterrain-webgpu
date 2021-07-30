@@ -218,28 +218,28 @@
 
   var terrainGenerator = new TerrainGenerator(device, canvas);
 
-  // var vertModule3D = device.createShaderModule({ code: display_terrain_3d_vert_spv });
-  // var fragModule3D = device.createShaderModule({ code: display_terrain_3d_frag_spv });
+  var vertModule3D = device.createShaderModule({ code: display_3d_vert });
+  var fragModule3D = device.createShaderModule({ code: display_3d_frag });
   var vertModule2D = device.createShaderModule({ code: display_2d_vert });
   var fragModule2D = device.createShaderModule({ code: display_2d_frag });
 
-  // // Setup shader modules
-  // var vertex3D = {
-  //   module: vertModule3D,
-  //   entryPoint: "main",
-  //   buffers: [
-  //     {
-  //       arrayStride: 3 * 4,
-  //       attributes: [
-  //         {
-  //           format: "float32x3",
-  //           offset: 0,
-  //           shaderLocation: 0,
-  //         },
-  //       ],
-  //     },
-  //   ],
-  // };
+  // Setup shader modules
+  var vertex3D = {
+    module: vertModule3D,
+    entryPoint: "main",
+    buffers: [
+      {
+        arrayStride: 3 * 4,
+        attributes: [
+          {
+            format: "float32x3",
+            offset: 0,
+            shaderLocation: 0,
+          },
+        ],
+      },
+    ],
+  };
   var vertex2D = {
     module: vertModule2D,
     entryPoint: "main",
@@ -408,28 +408,28 @@
     bindGroupLayouts: [displayTerrain2DBGLayout],
   });
 
-  // var renderPipeline3D = device.createRenderPipeline({
-  //   layout: layout3D,
-  //   vertex: vertex3D,
-  //   fragment: {
-  //     module: fragModule3D,
-  //     entryPoint: "main",
-  //     targets: [
-  //       {
-  //         format: swapChainFormat
-  //       },
-  //     ],
-  //   },
-  //   primitive: {
-  //     topology: 'triangle-list',
-  //     cullMode: "front",
-  //   },
-  //   depthStencil: {
-  //     format: depthFormat,
-  //     depthWriteEnabled: true,
-  //     depthCompare: "less",
-  //   },
-  // });
+  var renderPipeline3D = device.createRenderPipeline({
+    layout: layout3D,
+    vertex: vertex3D,
+    fragment: {
+      module: fragModule3D,
+      entryPoint: "main",
+      targets: [
+        {
+          format: swapChainFormat
+        },
+      ],
+    },
+    primitive: {
+      topology: 'triangle-list',
+      cullMode: "front",
+    },
+    depthStencil: {
+      format: depthFormat,
+      depthWriteEnabled: true,
+      depthCompare: "less",
+    },
+  });
   var renderPipeline2D = device.createRenderPipeline({
     layout: layout2D,
     vertex: vertex2D,
