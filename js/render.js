@@ -276,19 +276,13 @@
       },
       {
         binding: 2,
-        // One or more stage flags, or'd together
-        visibility: GPUShaderStage.FRAGMENT,
-        sampler: {}
-      },
-      {
-        binding: 3,
         visibility: GPUShaderStage.FRAGMENT,
         buffer: {
           type: "storage"
         }
       },
       {
-        binding: 4,
+        binding: 3,
         visibility: GPUShaderStage.FRAGMENT,
         buffer: {
           type: "uniform",
@@ -724,16 +718,12 @@
             },
             {
               binding: 2,
-              resource: sampler,
-            },
-            {
-              binding: 3,
               resource: {
                 buffer: terrainGenerator.pixelValueBuffer,
               }
             },
             {
-              binding: 4,
+              binding: 3,
               resource: {
                 buffer: imageSizeBuffer,
               }
