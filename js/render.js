@@ -110,9 +110,22 @@
   var context = canvas.getContext("gpupresent");
 
   document.getElementById("overlay").onclick = () => {
-    var testCanvas = document.getElementById("test-canvas");
-    var destCtx = testCanvas.getContext('2d');
-    destCtx.drawImage(canvas, 0, 0);
+    var overlay = 0;
+    if (document.getElementById("overlay").checked) {
+      overlay = 1;
+    }
+    var upload = device.createBuffer({
+      size:  4,
+      usage: GPUBufferUsage.COPY_SRC,
+      mappedAtCreation: true,
+    });
+    var map = new Uint32Array(upload.getMappedRange());
+    map.set([overlay]);
+    upload.unmap();
+
+    var commandEncoder = device.createCommandEncoder();
+    commandEncoder.copyBufferToBuffer(upload, 0, overlayBoolBuffer, 0,  4);
+    device.queue.submit([commandEncoder.finish()]);
   };
 
   document.getElementById("hideSelected").onclick = () => {
@@ -304,6 +317,18 @@
         buffer: {
           type: "storage"
         }
+      },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: {}
+      },
+      {
+        binding: 3,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: {
+          type: "uniform"
+        }
       }
     ],
   });
@@ -370,8 +395,8 @@
   new Uint32Array(imageSizeBuffer.getMappedRange()).set([canvas.width, canvas.height]);
   imageSizeBuffer.unmap();
 
-  var translationBuffer = device.createBuffer({
-    size: 2 * 4,
+  var overlayBoolBuffer = device.createBuffer({
+    size: 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
@@ -653,6 +678,14 @@
     await rangeBuffer.mapAsync(GPUMapMode.READ);
     console.log(new Int32Array(rangeBuffer.getMappedRange()));
 
+    // Set up overlay
+    overlayCanvas = document.querySelectorAll("[data-id='layer2-node']")[0];
+    overlayTexture = device.createTexture({
+      size: [overlayCanvas.width, overlayCanvas.height, 1],
+      format: "rgba8unorm",
+      usage: GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
+    });
+
     // // Testing
     // var minValue = 0;
     // var maxValue = 0;
@@ -675,24 +708,24 @@
     // }
     // console.log(values);
     // console.log(minValue, maxValue);
-
-    // Create our sampler
-    const sampler = device.createSampler({
-      magFilter: "linear",
-      minFilter: "linear",
-    });
     cy.reset();
     cy.zoom(0.5);
     cy.panBy({ x: 0, y: 600 });
     cy.on('pan', reloadViewBox);
-    var overlayCanvas = document.querySelector("[data-id='layer2-node']");
     //render!
     var frame = async function () {
       reloadCytoscapeStyle();
       if (document.getElementById("overlay").checked) {
-        var outCanvas = document.getElementById('out-canvas');
-        var context = outCanvas.getContext('2d');
-        context.drawImage(overlayCanvas, 0, 0);
+        // Setup overlay
+        var overlayImage = new Image();
+        overlayImage.src = overlayCanvas.toDataURL();
+        await overlayImage.decode();
+        const imageBitmap = await createImageBitmap(overlayImage);
+        device.queue.copyExternalImageToTexture(
+          { source: imageBitmap },
+          { texture: overlayTexture },
+          [imageBitmap.width, imageBitmap.height, 1]
+        );
       }
 
       if (recomputeTerrain) {
@@ -776,6 +809,16 @@
               binding: 1,
               resource: {
                 buffer: terrainGenerator.pixelValueBuffer,
+              }
+            },
+            {
+              binding: 2,
+              resource: overlayTexture.createView(),
+            },
+            {
+              binding: 3,
+              resource : {
+                buffer: overlayBoolBuffer,
               }
             }
           ],
