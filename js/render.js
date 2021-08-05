@@ -4,20 +4,20 @@
     return;
   }
 
-  this.nodeIDToValue = {};
-  this.nodeData = [];
-  this.nodeDataOriginal = [];
-  this.nodeElements = [];
-  this.edgeElements = [];
+  this.nodeIDToValue = [{}, {}];
+  this.nodeData = [[], []];
+  this.nodeDataOriginal = [[], []];
+  this.nodeElements = [[], []];
+  this.edgeElements = [[], []];
   this.layoutData = null;
-  this.widthFactor = document.getElementById("width").value;
-  this.recomputeTerrain = false;
-  this.translation = [0, 0, 1, 1];
-  this.fontSize = 24;
-  this.nodeHeight = 16;
-  this.nodeWidth = 16;
+  this.widthFactor = [document.getElementById("width").value, document.getElementById("width2").value];
+  this.recomputeTerrain = [false, false];
+  this.translation = [[0, 0, 1, 1], [0, 0, 1, 1]];
+  this.fontSize = [24, 24];
+  this.nodeHeight = [16, 16];
+  this.nodeWidth = [16, 16];
 
-  function onSubmit() {
+  function onSubmit(nodeElements, nodeData, nodeIDToValue, index) {
     const edgeReader = new FileReader();
     edgeReader.onload = async function (event) {
       edgeData = edgeReader.result.split("\n");
@@ -27,8 +27,8 @@
           nodeElements.push({ data: { source: parts[0], target: parts[1], weight: parseFloat(parts[2]) } });
         }
       }
-      drawCytoscape();
-      await render();
+      drawCytoscape(index);
+      await render(nodeData, index);
     };
     const layoutReader = new FileReader();
     layoutReader.onload = function (event) {
@@ -51,7 +51,6 @@
     const nodeReader = new FileReader();
     nodeReader.onload = function (event) {
       var rawNodes = nodeReader.result.split("\n");
-      console.log(rawNodes);
       for (element of rawNodes) {
         nodeIDToValue[element.split("\t")[0]] = element.split("\t")[1]
       }
@@ -62,17 +61,17 @@
 
   async function onSave() {
     const gpuReadBuffer = device.createBuffer({
-      size: canvas.width * canvas.height * 4,
+      size: canvas[0].width * canvas[0].height * 4,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
     });
     var commandEncoder = device.createCommandEncoder();
     // Encode commands for copying buffer to buffer.
     commandEncoder.copyBufferToBuffer(
-      terrainGenerator.pixelValueBuffer /* source buffer */,
+      terrainGenerator[0].pixelValueBuffer /* source buffer */,
       0 /* source offset */,
       gpuReadBuffer /* destination buffer */,
       0 /* destination offset */,
-      canvas.width * canvas.height * 4 /* size */
+      canvas[0].width * canvas[0].height * 4 /* size */
     );
 
     // Submit GPU commands.
@@ -87,11 +86,11 @@
     var context = outCanvas.getContext('2d');
     context.drawImage(colormapImage, 0, 0);
     var colorData = context.getImageData(0, 0, 180, 1).data;
-    var imgData = context.createImageData(canvas.width, canvas.height);
-    for (var i = 0; i < canvas.height; i++) {
-      for (var j = 0; j < canvas.width; j++) {
-        var index = j + i * canvas.width;
-        var colorIndex = Math.trunc(output[j + (canvas.height - 1 - i) * canvas.width] * 180) * 4;
+    var imgData = context.createImageData(canvas[0].width, canvas[0].height);
+    for (var i = 0; i < canvas[0].height; i++) {
+      for (var j = 0; j < canvas[0].width; j++) {
+        var index = j + i * canvas[0].width;
+        var colorIndex = Math.trunc(output[j + (canvas[0].height - 1 - i) * canvas[0].width] * 180) * 4;
         imgData.data[index * 4] = colorData[colorIndex];
         imgData.data[index * 4 + 1] = colorData[colorIndex + 1];
         imgData.data[index * 4 + 2] = colorData[colorIndex + 2];
@@ -102,12 +101,13 @@
     outCanvas.toBlob(function (b) { saveAs(b, `terrain.png`); }, "image/png");
   }
 
-  document.getElementById("submit").onclick = onSubmit;
+  document.getElementById("submit").onclick = function () { onSubmit(nodeElements[0], nodeData[0], nodeIDToValue[0], 0); };
+  document.getElementById("submit2").onclick = function () { onSubmit(nodeElements[1], nodeData[1], nodeIDToValue[1], 1); };
   document.getElementById("save").onclick = onSave;
 
   // Get a context to display our rendered image on the canvas
-  var canvas = document.getElementById("webgpu-canvas");
-  var context = canvas.getContext("gpupresent");
+  var canvas = [document.getElementById("webgpu-canvas"), document.getElementById("webgpu-canvas-2")];
+  var context = [canvas[0].getContext("webgpu"), canvas[1].getContext("webgpu")];
 
   document.getElementById("overlay").onclick = () => {
     var overlay = 0;
@@ -115,7 +115,7 @@
       overlay = 1;
     }
     var upload = device.createBuffer({
-      size:  4,
+      size: 4,
       usage: GPUBufferUsage.COPY_SRC,
       mappedAtCreation: true,
     });
@@ -124,47 +124,45 @@
     upload.unmap();
 
     var commandEncoder = device.createCommandEncoder();
-    commandEncoder.copyBufferToBuffer(upload, 0, overlayBoolBuffer, 0,  4);
+    commandEncoder.copyBufferToBuffer(upload, 0, overlayBoolBuffer, 0, 4);
     device.queue.submit([commandEncoder.finish()]);
   };
 
   document.getElementById("hideSelected").onclick = () => {
     if (document.getElementById("hideSelected").checked) {
       for (node of cy.nodes(':selected')) {
-        nodeData[node._private.data.index * 4] = 0;
+        nodeData[0][node._private.data.index * 4] = 0;
         node._private.data.opacity = 0;
       }
     } else {
       for (node of cy.nodes(':selected')) {
-        nodeData[node._private.data.index * 4] = nodeDataOriginal[node._private.data.index * 4];
+        nodeData[0][node._private.data.index * 4] = nodeDataOriginal[node._private.data.index * 4];
         node._private.data.opacity = 1;
       }
     }
-    reloadCytoscapeStyle();
     recomputeTerrain = true;
   }
 
   document.getElementById("showSelected").onclick = () => {
     if (document.getElementById("showSelected").checked) {
-      for (var i = 0; i < nodeData.length; i += 4) {
-        nodeData[i] = 0;
+      for (var i = 0; i < nodeData[0].length; i += 4) {
+        nodeData[0][i] = 0;
       }
       for (node of cy.nodes()) {
         node._private.data.opacity = 0;
       }
       for (node of cy.nodes(':selected')) {
-        nodeData[node._private.data.index * 4] = nodeDataOriginal[node._private.data.index * 4];
+        nodeData[0][node._private.data.index * 4] = nodeDataOriginal[node._private.data.index * 4];
         node._private.data.opacity = 1;
       }
     } else {
-      for (var i = 0; i < nodeData.length; i += 4) {
-        nodeData[i] = nodeDataOriginal[i];
+      for (var i = 0; i < nodeData[0].length; i += 4) {
+        nodeData[0][i] = nodeDataOriginal[i];
       }
       for (node of cy.nodes()) {
         node._private.data.opacity = 1;
       }
     }
-    reloadCytoscapeStyle();
     recomputeTerrain = true;
   }
 
@@ -175,21 +173,21 @@
     // } else {
     //   width = width / 10;
     // }
-    widthFactor = width;
-    recomputeTerrain = true;
+    widthFactor[0] = width;
+    recomputeTerrain[0] = true;
   }
 
-  function reloadCytoscapeStyle() {
-    if (cy) {
-      cy.style([{
+  function reloadCytoscapeStyle(index) {
+    if (cy[index]) {
+      cy[index].style([{
         selector: 'node',
         css: {
           'content': 'data(id)',
-          'font-size': fontSize,
+          'font-size': fontSize[index],
           'text-valign': 'top',
           'text-halign': 'center',
-          'height': nodeHeight,
-          'width': nodeWidth,
+          'height': nodeHeight[index],
+          'width': nodeWidth[index],
           'background-opacity': 1,
           'border-width': 1,
           'border-color': 'gray',
@@ -229,7 +227,16 @@
   var adapter = await navigator.gpu.requestAdapter();
   var device = await adapter.requestDevice();
 
-  var terrainGenerator = new TerrainGenerator(device, canvas);
+  var terrainGenerator = [new TerrainGenerator(device, canvas[0]), new TerrainGenerator(device, canvas[1])];
+
+  var subtractCanvas = document.getElementById("subtract-canvas");
+  var terrainSubtracter = new TerrainSubtracter(device, subtractCanvas);
+  var subtractContext = subtractCanvas.getContext("webgpu");
+
+  document.getElementById("subtract").onclick = async function () {
+    await terrainSubtracter.subtractTerrain(terrainGenerator[0].pixelValueBuffer, terrainGenerator[1].pixelValueBuffer);
+    requestAnimationFrame(subtractFrame);
+  };
 
   var vertModule3D = device.createShaderModule({ code: display_3d_vert });
   var fragModule3D = device.createShaderModule({ code: display_3d_frag });
@@ -392,7 +399,7 @@
     usage: GPUBufferUsage.UNIFORM,
     mappedAtCreation: true
   });
-  new Uint32Array(imageSizeBuffer.getMappedRange()).set([canvas.width, canvas.height]);
+  new Uint32Array(imageSizeBuffer.getMappedRange()).set([canvas[0].width, canvas[0].height]);
   imageSizeBuffer.unmap();
 
   var overlayBoolBuffer = device.createBuffer({
@@ -402,7 +409,17 @@
 
   // Setup render outputs
   var swapChainFormat = "bgra8unorm";
-  var swapChain = context.configureSwapChain({
+  context[0].configure({
+    device: device,
+    format: swapChainFormat,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+  context[1].configure({
+    device: device,
+    format: swapChainFormat,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+  subtractContext.configure({
     device: device,
     format: swapChainFormat,
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
@@ -411,8 +428,8 @@
   var depthFormat = "depth24plus-stencil8";
   var depthTexture = device.createTexture({
     size: {
-      width: canvas.width,
-      height: canvas.height,
+      width: canvas[0].width,
+      height: canvas[0].height,
       depth: 1,
     },
     format: depthFormat,
@@ -505,15 +522,15 @@
 
   // Create an Arcball camera and view projection matrix
   var camera = new ArcballCamera([0, 0, 3], [0, 0, 0], [0, 1, 0], 0.5, [
-    canvas.width,
-    canvas.height,
+    canvas[0].width,
+    canvas[0].height,
   ]);
 
   // Create a perspective projection matrix
   var projection = mat4.perspective(
     mat4.create(),
     (50 * Math.PI) / 180.0,
-    canvas.width / canvas.height,
+    canvas[0].width / canvas[0].height,
     0.1,
     100
   );
@@ -533,16 +550,16 @@
   controller.wheel = function (amt) {
     camera.zoom(amt * 0.5);
   };
-  controller.registerForCanvas(canvas);
+  controller.registerForCanvas(canvas[0]);
 
-  var cy = null;
+  var cy = [null, null];
 
-  function drawCytoscape() {
-    cy = cytoscape({
+  function drawCytoscape(index) {
+    cy[index] = cytoscape({
       minZoom: 1e-1,
       maxZoom: 1e1,
       wheelSensitivity: 0.1,
-      container: document.getElementById('cy'),
+      container: document.getElementById(`cy${index == 1 ? "2" : ""}`),
       layout: {
         name: 'preset'
       },
@@ -552,9 +569,9 @@
           'content': 'data(id)',
           'text-valign': 'top',
           'text-halign': 'center',
-          'font-size': fontSize,
-          'height': nodeHeight,
-          'width': nodeWidth,
+          'font-size': fontSize[index],
+          'height': nodeHeight[index],
+          'width': nodeWidth[index],
           'background-opacity': 1,
           'border-width': 1,
           'border-color': 'gray',
@@ -578,32 +595,27 @@
         },
       }
       ],
-      elements: this.nodeElements
+      elements: nodeElements[index]
     });
-    cy.nodes().on('dragfreeon', reloadNodeData);
-    edgeElements = cy.edges().remove();
+    cy[index].nodes().on('dragfreeon', function (event) { reloadNodeData(event, nodeData[index]) });
+    edgeElements[index] = cy[index].edges().remove();
   }
 
-  async function reloadViewBox(event) {
-    // var upload = device.createBuffer({
-    //   size: 2 * 4,
-    //   usage: GPUBufferUsage.COPY_SRC,
-    //   mappedAtCreation: true,
-    // });
-    // new Float32Array(upload.getMappedRange()).set([cy.extent().x1 / 1200.0, cy.extent().y2 / -1200.0]);
-    // upload.unmap();
-    translation = [cy.extent().x1 / 1200.0, cy.extent().y2 / -1200.0, cy.extent().x2 / 1200.0, cy.extent().y1 / -1200.0];
-    recomputeTerrain = true;
-    fontSize = (1 / cy.zoom()) * 0.5 * 24;
-    nodeHeight = (1 / cy.zoom()) * 0.5 * 16;
-    nodeWidth = (1 / cy.zoom()) * 0.5 * 16;
+  async function reloadViewBox(event, index) {
+    console.log(index);
+    translation[index] = [cy[index].extent().x1 / 1200.0, cy[index].extent().y2 / -1200.0, cy[index].extent().x2 / 1200.0, cy[index].extent().y1 / -1200.0];
+    console.log(translation);
+    recomputeTerrain[index] = true;
+    fontSize[index] = (1 / cy[index].zoom()) * 0.5 * 24;
+    nodeHeight[index] = (1 / cy[index].zoom()) * 0.5 * 16;
+    nodeWidth[index] = (1 / cy[index].zoom()) * 0.5 * 16;
     // reloadCytoscapeStyle();
     // var commandEncoder = device.createCommandEncoder();
     // commandEncoder.copyBufferToBuffer(upload, 0, translationBuffer, 0, 2 * 4);
     // device.queue.submit([commandEncoder.finish()]);
   }
 
-  async function reloadNodeData(event) {
+  async function reloadNodeData(event, nodeData) {
     var x = event.target._private.position.x / 1200;
     var y = event.target._private.position.y / -1200;
 
@@ -611,7 +623,7 @@
     nodeData[event.target._private.data.index * 4 + 1] = x;
     nodeData[event.target._private.data.index * 4 + 2] = y;
 
-    recomputeTerrain = true;
+    recomputeTerrain[index] = true;
     // var upload = device.createBuffer({
     //   size: nodeData.length * 4,
     //   usage: GPUBufferUsage.COPY_SRC,
@@ -626,7 +638,51 @@
 
   }
 
-  async function render() {
+  var subtractFrame = async function () {
+    var bindGroup = device.createBindGroup({
+      layout: displayTerrain2DBGLayout,
+      entries: [
+        {
+          binding: 0,
+          resource: colorTexture.createView(),
+        },
+        {
+          binding: 1,
+          resource: {
+            buffer: terrainSubtracter.pixelValueBuffer,
+          }
+        },
+        {
+          binding: 2,
+          resource: overlayTexture.createView(),
+        },
+        {
+          binding: 3,
+          resource: {
+            buffer: overlayBoolBuffer,
+          }
+        }
+      ],
+    });
+
+    renderPassDesc.colorAttachments[0].view = subtractContext.getCurrentTexture().createView();
+
+    var commandEncoder = device.createCommandEncoder();
+
+    var renderPass = commandEncoder.beginRenderPass(renderPassDesc);
+
+    renderPass.setPipeline(renderPipeline2D);
+    renderPass.setVertexBuffer(0, dataBuf2D);
+    // Set the bind group to its associated slot
+    renderPass.setBindGroup(0, bindGroup);
+    renderPass.draw(6, 1, 0, 0);
+
+    renderPass.endPass();
+    device.queue.submit([commandEncoder.finish()]);
+    requestAnimationFrame(subtractFrame);
+  }
+
+  async function render(nodeData, index) {
     console.log(nodeData);
     nodeDataOriginal = [...nodeData];
     // for (var k = 0; k < 406; k++) {
@@ -655,7 +711,7 @@
     //   nodeData[k * 4 + 2] = (nodeData[k * 4 + 2] - minY) / (maxY - minY);
     // }
 
-    await terrainGenerator.computeTerrain(nodeData, widthFactor, translation);
+    await terrainGenerator[index].computeTerrain(nodeData, widthFactor[index], translation[index]);
 
     const rangeBuffer = device.createBuffer({
       size: 2 * 4,
@@ -664,7 +720,7 @@
     var commandEncoder = device.createCommandEncoder();
     // Encode commands for copying buffer to buffer.
     commandEncoder.copyBufferToBuffer(
-      terrainGenerator.rangeBuffer /* source buffer */,
+      terrainGenerator[index].rangeBuffer /* source buffer */,
       0 /* source offset */,
       rangeBuffer /* destination buffer */,
       0 /* destination offset */,
@@ -708,13 +764,13 @@
     // }
     // console.log(values);
     // console.log(minValue, maxValue);
-    cy.reset();
-    cy.zoom(0.5);
-    cy.panBy({ x: 0, y: 600 });
-    cy.on('pan', reloadViewBox);
+    cy[index].reset();
+    cy[index].zoom(0.5);
+    cy[index].panBy({ x: 0, y: 600 });
+    cy[index].on('pan', function (event) { reloadViewBox(event, index); });
     //render!
     var frame = async function () {
-      reloadCytoscapeStyle();
+      reloadCytoscapeStyle(index);
       if (document.getElementById("overlay").checked) {
         // Setup overlay
         var overlayImage = new Image();
@@ -728,11 +784,11 @@
         );
       }
 
-      if (recomputeTerrain) {
+      if (recomputeTerrain[index]) {
         start = performance.now()
-        await terrainGenerator.computeTerrain(nodeData, widthFactor, translation);
+        await terrainGenerator[index].computeTerrain(nodeData, widthFactor[index], translation[index]);
         console.log(performance.now() - start);
-        recomputeTerrain = false;
+        recomputeTerrain[index] = false;
       }
 
       if (document.getElementById("3d").checked) {
@@ -752,7 +808,7 @@
             {
               binding: 2,
               resource: {
-                buffer: terrainGenerator.pixelValueBuffer,
+                buffer: terrainGenerator[index].pixelValueBuffer,
               }
             },
             {
@@ -764,9 +820,7 @@
           ],
         });
 
-        renderPassDesc.colorAttachments[0].view = swapChain
-          .getCurrentTexture()
-          .createView();
+        renderPassDesc.colorAttachments[0].view = context[index].getCurrentTexture().createView();
 
         // Compute and upload the combined projection and view matrix
         projView = mat4.mul(projView, projection, camera.camera);
@@ -808,7 +862,7 @@
             {
               binding: 1,
               resource: {
-                buffer: terrainGenerator.pixelValueBuffer,
+                buffer: terrainGenerator[index].pixelValueBuffer,
               }
             },
             {
@@ -817,16 +871,14 @@
             },
             {
               binding: 3,
-              resource : {
+              resource: {
                 buffer: overlayBoolBuffer,
               }
             }
           ],
         });
 
-        renderPassDesc.colorAttachments[0].view = swapChain
-          .getCurrentTexture()
-          .createView();
+        renderPassDesc.colorAttachments[0].view = context[index].getCurrentTexture().createView();
 
         var commandEncoder = device.createCommandEncoder();
 

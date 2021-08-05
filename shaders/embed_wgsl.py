@@ -6,6 +6,7 @@ shaders = [
     "display_2d_frag.wgsl",
     "display_3d_vert.wgsl",
     "display_3d_frag.wgsl",
+    "subtract_terrain.wgsl",
 ]
 compiled_shaders = ""
 

@@ -1,21 +1,21 @@
-var TerrainGenerator = function (device, canvas) {
+var TerrainSubtracter = function (device, canvas) {
     this.device = device;
     this.canvas = canvas;
 
-    this.computeTerrainBGLayout = device.createBindGroupLayout({
+    this.subtractTerrainBGLayout = device.createBindGroupLayout({
         entries: [
             {
                 binding: 0,
                 visibility: GPUShaderStage.COMPUTE,
                 buffer: {
-                    type: "storage",
+                    type: "uniform",
                 }
             },
             {
                 binding: 1,
                 visibility: GPUShaderStage.COMPUTE,
                 buffer: {
-                    type: "uniform",
+                    type: "storage",
                 }
             },
             {
@@ -31,17 +31,24 @@ var TerrainGenerator = function (device, canvas) {
                 buffer: {
                     type: "storage",
                 }
+            },
+            {
+                binding: 4,
+                visibility: GPUShaderStage.COMPUTE,
+                buffer: {
+                    type: "storage",
+                }
             }
         ],
     });
 
-    this.computeTerrainPipeline = device.createComputePipeline({
+    this.subtractTerrainPipeline = device.createComputePipeline({
         layout: device.createPipelineLayout({
-            bindGroupLayouts: [this.computeTerrainBGLayout],
+            bindGroupLayouts: [this.subtractTerrainBGLayout],
         }),
         compute: {
             module: device.createShaderModule({
-                code: compute_terrain,
+                code: subtract_terrain,
             }),
             entryPoint: "main",
         },
@@ -85,7 +92,7 @@ var TerrainGenerator = function (device, canvas) {
         },
     });
 
-    // Create a buffer to store the params, output, and min/max
+    // Create a buffer to store the params
     this.paramsBuffer = device.createBuffer({
         size: 8 * 4,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -97,18 +104,8 @@ var TerrainGenerator = function (device, canvas) {
     });
 };
 
-TerrainGenerator.prototype.computeTerrain =
-    async function (nodeData, widthFactor, translation) {
-        console.log(widthFactor);
-        // Set up node data buffer
-        this.nodeDataBuffer = this.device.createBuffer({
-            size: nodeData.length * 4,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-            mappedAtCreation: true,
-        });
-        new Float32Array(this.nodeDataBuffer.getMappedRange()).set(nodeData);
-        this.nodeDataBuffer.unmap();
-
+TerrainSubtracter.prototype.subtractTerrain =
+    async function (pixelsA, pixelsB) {
         // Have to reset range buffer
         this.rangeBuffer = this.device.createBuffer({
             size: 2 * 4,
@@ -122,35 +119,40 @@ TerrainGenerator.prototype.computeTerrain =
             mappedAtCreation: true,
         });
         var mapping = upload.getMappedRange();
-        new Uint32Array(mapping).set([this.canvas.width, this.canvas.height, nodeData.length / 4]);
-        new Float32Array(mapping).set([widthFactor, translation[0], translation[1], translation[2], translation[3]], 3);
+        new Uint32Array(mapping).set([this.canvas.width, this.canvas.height]);
         upload.unmap();
         var commandEncoder = this.device.createCommandEncoder();
         commandEncoder.copyBufferToBuffer(upload, 0, this.paramsBuffer, 0, 8 * 4);
         // Create bind group
         var bindGroup = this.device.createBindGroup({
-            layout: this.computeTerrainBGLayout,
+            layout: this.subtractTerrainBGLayout,
             entries: [
                 {
                     binding: 0,
-                    resource: {
-                        buffer: this.nodeDataBuffer,
-                    },
-                },
-                {
-                    binding: 1,
                     resource: {
                         buffer: this.paramsBuffer,
                     },
                 },
                 {
+                    binding: 1,
+                    resource: {
+                        buffer: pixelsA,
+                    },
+                },
+                {
                     binding: 2,
+                    resource: {
+                        buffer: pixelsB,
+                    },
+                },
+                {
+                    binding: 3,
                     resource: {
                         buffer: this.pixelValueBuffer,
                     },
                 },
                 {
-                    binding: 3,
+                    binding: 4,
                     resource: {
                         buffer: this.rangeBuffer,
                     },
@@ -159,9 +161,9 @@ TerrainGenerator.prototype.computeTerrain =
         });
 
         // Run compute terrain pass
-        var pass = commandEncoder.beginComputePass(this.computeTerrainPipeline);
+        var pass = commandEncoder.beginComputePass(this.subtractTerrainPipeline);
         pass.setBindGroup(0, bindGroup);
-        pass.setPipeline(this.computeTerrainPipeline);
+        pass.setPipeline(this.subtractTerrainPipeline);
         pass.dispatch(this.canvas.width, this.canvas.height, 1);
         pass.endPass();
         this.device.queue.submit([commandEncoder.finish()]);

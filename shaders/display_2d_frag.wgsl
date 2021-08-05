@@ -20,8 +20,8 @@ fn main([[location(0)]] fragPosition: vec4<f32>) -> [[location(0)]] vec4<f32> {
     if (overlay_bool.checked == u32(0)) {
         return color;
     }
-    var overlay_color : vec4<f32> = textureLoad(overlay, vec2<i32>(i32(ufragPos.x), (600 - i32(ufragPos.y))) * 2, 0);
-    if (overlay_color.w < 0.5) {
+    var overlay_color : vec4<f32> = textureLoad(overlay, vec2<i32>(i32(ufragPos.x), (600 - i32(ufragPos.y))), 0);
+    if (overlay_color.w < 0.2) {
         return color;
     }
     return overlay_color;
