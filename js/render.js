@@ -235,6 +235,7 @@
 
   document.getElementById("subtract").onclick = async function () {
     await terrainSubtracter.subtractTerrain(terrainGenerator[0].pixelValueBuffer, terrainGenerator[1].pixelValueBuffer);
+    document.getElementById("compare-label").innerText = `Mean Squared Error: ${terrainSubtracter.MSE}`;
     requestAnimationFrame(subtractFrame);
   };
 

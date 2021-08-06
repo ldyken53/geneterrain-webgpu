@@ -112,7 +112,7 @@ TerrainSubtracter.prototype.subtractTerrain =
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
         });
 
-        // Set up params (image width, height, node length, and width factor)
+        // Set up params (image width, height)
         var upload = this.device.createBuffer({
             size: 8 * 4,
             usage: GPUBufferUsage.COPY_SRC,
@@ -156,7 +156,7 @@ TerrainSubtracter.prototype.subtractTerrain =
                     resource: {
                         buffer: this.rangeBuffer,
                     },
-                },
+                }
             ],
         });
 
@@ -168,6 +168,31 @@ TerrainSubtracter.prototype.subtractTerrain =
         pass.endPass();
         this.device.queue.submit([commandEncoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
+
+        const mseBuffer = this.device.createBuffer({
+            size: this.canvas.width * this.canvas.height * 4,
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+        });
+        var commandEncoder = this.device.createCommandEncoder();
+        // Encode commands for copying buffer to buffer.
+        commandEncoder.copyBufferToBuffer(
+            this.pixelValueBuffer /* source buffer */,
+            0 /* source offset */,
+            mseBuffer /* destination buffer */,
+            0 /* destination offset */,
+            this.canvas.width * this.canvas.height * 4 /* size */
+        );
+
+        // Submit GPU commands.
+        this.device.queue.submit([commandEncoder.finish()]);
+        // Read buffer.
+        await mseBuffer.mapAsync(GPUMapMode.READ);
+        var mseArray = new Float32Array(mseBuffer.getMappedRange());
+        var sum = 0;
+        for (var x = 0; x < mseArray.length; x++) {
+            sum += mseArray[x] * mseArray[x];
+        }
+        this.MSE = sum / (this.canvas.width * this.canvas.height);
 
         // Run normalize terrain pass
         var bindGroup = this.device.createBindGroup({
