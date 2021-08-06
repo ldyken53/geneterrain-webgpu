@@ -236,6 +236,17 @@
   document.getElementById("subtract").onclick = async function () {
     await terrainSubtracter.subtractTerrain(terrainGenerator[0].pixelValueBuffer, terrainGenerator[1].pixelValueBuffer);
     document.getElementById("compare-label").innerText = `Mean Squared Error: ${terrainSubtracter.MSE}`;
+    var maxDiff = [0, 0, 0, 0, 0];
+    var id = ["", "", "", "", ""];
+    for (element of nodeElements[0]) {
+      var diff = nodeIDToValue[0][element.data.id] - nodeIDToValue[1][element.data.id];
+      if (Math.abs(diff) > Math.abs(Math.min(...maxDiff))) {
+        id[maxDiff.indexOf(Math.min(...maxDiff))] = element.data.id;
+        maxDiff[maxDiff.indexOf(Math.min(...maxDiff))] = Math.abs(diff);
+      }
+    }
+    console.log(id);
+    console.log(maxDiff);
     requestAnimationFrame(subtractFrame);
   };
 
