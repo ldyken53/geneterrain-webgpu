@@ -237,16 +237,23 @@
     await terrainSubtracter.subtractTerrain(terrainGenerator[0].pixelValueBuffer, terrainGenerator[1].pixelValueBuffer);
     document.getElementById("compare-label").innerText = `Mean Squared Error: ${terrainSubtracter.MSE}`;
     var maxDiff = [0, 0, 0, 0, 0];
+    var absMaxDiff = [0, 0, 0, 0, 0];
     var id = ["", "", "", "", ""];
     for (element of nodeElements[0]) {
       var diff = nodeIDToValue[0][element.data.id] - nodeIDToValue[1][element.data.id];
-      if (Math.abs(diff) > Math.abs(Math.min(...maxDiff))) {
-        id[maxDiff.indexOf(Math.min(...maxDiff))] = element.data.id;
-        maxDiff[maxDiff.indexOf(Math.min(...maxDiff))] = Math.abs(diff);
+      var absMin = Math.min(...absMaxDiff);
+      if (Math.abs(diff) > absMin) {
+        var absMindex = absMaxDiff.indexOf(absMin);
+        id[absMindex] = element.data.id;
+        absMaxDiff[absMindex] = Math.abs(diff);
+        maxDiff[absMindex] = diff;
       }
     }
-    console.log(id);
-    console.log(maxDiff);
+    var diffString = "Max Gene Differences\n";
+    for (var i = 0; i < 5; i++) {
+      diffString += `${id[i]}: ${maxDiff[i]}\n`
+    }
+    document.getElementById("node-difference").value = diffString;
     requestAnimationFrame(subtractFrame);
   };
 
