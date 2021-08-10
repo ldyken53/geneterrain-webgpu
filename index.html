@@ -88,15 +88,15 @@
         <div style="position: absolute; top: 1300px;">
           <input style="width: 100%" type="range" min="0" max="3000" value="1000" step="10" class="slider" id="width2">
           <input type="checkbox" id="hideSelected2"></input>
-          <label for="hideSelected">Hide Selected</label>
+          <label for="hideSelected2">Hide Selected</label>
 
           <input type="checkbox" id="showSelected2"></input>
-          <label for="showSelected">Show Selected</label>
+          <label for="showSelected2">Show Selected</label>
 
           <input type="checkbox" id="overlay2">
-          <label for="overlay">Overlay Graph</label>
+          <label for="overlay2">Overlay Graph</label>
           <input type="checkbox" id="edges2">
-          <label for="edges">Show Edges</label>
+          <label for="edges2">Show Edges</label>
           <button id="save2">Save Terrain</button>
         </div>
         <div style="position: absolute; top: 1360px;">
@@ -115,6 +115,7 @@
       </div>
     </div>
   </div>
+  <canvas id="out-canvas" class="img-fluid" style="display: none;" width="600" height="600"></canvas>
   <script src="js/wgsl.js"></script>
   <script src="js/gl-matrix-min.js"></script>
   <script src="js/webgl-util.js"></script>

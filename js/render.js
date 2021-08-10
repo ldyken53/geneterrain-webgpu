@@ -32,7 +32,6 @@
     };
     const layoutReader = new FileReader();
     layoutReader.onload = function (event) {
-      console.log(nodeIDToValue);
       layoutData = layoutReader.result.split("\n");
       var i = 0;
       for (element of layoutData) {
@@ -59,19 +58,21 @@
     nodeReader.readAsText(document.getElementById("node").files[0]);
   }
 
-  async function onSave() {
+  async function onSave(index) {
+    var height = canvas[index].height;
+    var width = canvas[index].width;
     const gpuReadBuffer = device.createBuffer({
-      size: canvas[0].width * canvas[0].height * 4,
+      size: width * height * 4,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
     });
     var commandEncoder = device.createCommandEncoder();
     // Encode commands for copying buffer to buffer.
     commandEncoder.copyBufferToBuffer(
-      terrainGenerator[0].pixelValueBuffer /* source buffer */,
+      terrainGenerator[index].pixelValueBuffer /* source buffer */,
       0 /* source offset */,
       gpuReadBuffer /* destination buffer */,
       0 /* destination offset */,
-      canvas[0].width * canvas[0].height * 4 /* size */
+      width * height * 4 /* size */
     );
 
     // Submit GPU commands.
@@ -86,11 +87,11 @@
     var context = outCanvas.getContext('2d');
     context.drawImage(colormapImage, 0, 0);
     var colorData = context.getImageData(0, 0, 180, 1).data;
-    var imgData = context.createImageData(canvas[0].width, canvas[0].height);
-    for (var i = 0; i < canvas[0].height; i++) {
-      for (var j = 0; j < canvas[0].width; j++) {
-        var index = j + i * canvas[0].width;
-        var colorIndex = Math.trunc(output[j + (canvas[0].height - 1 - i) * canvas[0].width] * 180) * 4;
+    var imgData = context.createImageData(width, height);
+    for (var i = 0; i < height; i++) {
+      for (var j = 0; j < width; j++) {
+        var index = j + i * width;
+        var colorIndex = Math.trunc(output[j + (height - 1 - i) * width] * 180) * 4;
         imgData.data[index * 4] = colorData[colorIndex];
         imgData.data[index * 4 + 1] = colorData[colorIndex + 1];
         imgData.data[index * 4 + 2] = colorData[colorIndex + 2];
@@ -103,7 +104,9 @@
 
   document.getElementById("submit").onclick = function () { onSubmit(nodeElements[0], nodeData[0], nodeIDToValue[0], 0); };
   document.getElementById("submit2").onclick = function () { onSubmit(nodeElements[1], nodeData[1], nodeIDToValue[1], 1); };
-  document.getElementById("save").onclick = onSave;
+  document.getElementById("save").onclick = function () { onSave(0) };
+  document.getElementById("save2").onclick = function () { onSave(1) };
+
 
   // Get a context to display our rendered image on the canvas
   var canvas = [document.getElementById("webgpu-canvas"), document.getElementById("webgpu-canvas-2")];
@@ -124,23 +127,57 @@
     upload.unmap();
 
     var commandEncoder = device.createCommandEncoder();
-    commandEncoder.copyBufferToBuffer(upload, 0, overlayBoolBuffer, 0, 4);
+    commandEncoder.copyBufferToBuffer(upload, 0, overlayBoolBuffer[0], 0, 4);
+    device.queue.submit([commandEncoder.finish()]);
+  };
+
+  document.getElementById("overlay2").onclick = () => {
+    var overlay = 0;
+    if (document.getElementById("overlay2").checked) {
+      overlay = 1;
+    }
+    var upload = device.createBuffer({
+      size: 4,
+      usage: GPUBufferUsage.COPY_SRC,
+      mappedAtCreation: true,
+    });
+    var map = new Uint32Array(upload.getMappedRange());
+    map.set([overlay]);
+    upload.unmap();
+
+    var commandEncoder = device.createCommandEncoder();
+    commandEncoder.copyBufferToBuffer(upload, 0, overlayBoolBuffer[1], 0, 4);
     device.queue.submit([commandEncoder.finish()]);
   };
 
   document.getElementById("hideSelected").onclick = () => {
     if (document.getElementById("hideSelected").checked) {
-      for (node of cy.nodes(':selected')) {
+      for (node of cy[0].nodes(':selected')) {
         nodeData[0][node._private.data.index * 4] = 0;
         node._private.data.opacity = 0;
       }
     } else {
-      for (node of cy.nodes(':selected')) {
-        nodeData[0][node._private.data.index * 4] = nodeDataOriginal[node._private.data.index * 4];
+      for (node of cy[0].nodes(':selected')) {
+        nodeData[0][node._private.data.index * 4] = nodeDataOriginal[0][node._private.data.index * 4];
         node._private.data.opacity = 1;
       }
     }
-    recomputeTerrain = true;
+    recomputeTerrain[0] = true;
+  }
+
+  document.getElementById("hideSelected2").onclick = () => {
+    if (document.getElementById("hideSelected2").checked) {
+      for (node of cy[1].nodes(':selected')) {
+        nodeData[1][node._private.data.index * 4] = 0;
+        node._private.data.opacity = 0;
+      }
+    } else {
+      for (node of cy[1].nodes(':selected')) {
+        nodeData[1][node._private.data.index * 4] = nodeDataOriginal[1][node._private.data.index * 4];
+        node._private.data.opacity = 1;
+      }
+    }
+    recomputeTerrain[1] = true;
   }
 
   document.getElementById("showSelected").onclick = () => {
@@ -148,22 +185,45 @@
       for (var i = 0; i < nodeData[0].length; i += 4) {
         nodeData[0][i] = 0;
       }
-      for (node of cy.nodes()) {
+      for (node of cy[0].nodes()) {
         node._private.data.opacity = 0;
       }
-      for (node of cy.nodes(':selected')) {
-        nodeData[0][node._private.data.index * 4] = nodeDataOriginal[node._private.data.index * 4];
+      for (node of cy[0].nodes(':selected')) {
+        nodeData[0][node._private.data.index * 4] = nodeDataOriginal[0][node._private.data.index * 4];
         node._private.data.opacity = 1;
       }
     } else {
       for (var i = 0; i < nodeData[0].length; i += 4) {
-        nodeData[0][i] = nodeDataOriginal[i];
+        nodeData[0][i] = nodeDataOriginal[0][i];
       }
-      for (node of cy.nodes()) {
+      for (node of cy[0].nodes()) {
         node._private.data.opacity = 1;
       }
     }
-    recomputeTerrain = true;
+    recomputeTerrain[0] = true;
+  }
+
+  document.getElementById("showSelected2").onclick = () => {
+    if (document.getElementById("showSelected2").checked) {
+      for (var i = 0; i < nodeData[1].length; i += 4) {
+        nodeData[1][i] = 0;
+      }
+      for (node of cy[1].nodes()) {
+        node._private.data.opacity = 0;
+      }
+      for (node of cy[1].nodes(':selected')) {
+        nodeData[1][node._private.data.index * 4] = nodeDataOriginal[1][node._private.data.index * 4];
+        node._private.data.opacity = 1;
+      }
+    } else {
+      for (var i = 0; i < nodeData[1].length; i += 4) {
+        nodeData[1][i] = nodeDataOriginal[1][i];
+      }
+      for (node of cy[1].nodes()) {
+        node._private.data.opacity = 1;
+      }
+    }
+    recomputeTerrain[1] = true;
   }
 
   document.getElementById("width").oninput = () => {
@@ -175,6 +235,17 @@
     // }
     widthFactor[0] = width;
     recomputeTerrain[0] = true;
+  }
+
+  document.getElementById("width2").oninput = () => {
+    var width = document.getElementById("width2").value;
+    // if (width > 10) {
+    //   width = width - 9;
+    // } else {
+    //   width = width / 10;
+    // }
+    widthFactor[1] = width;
+    recomputeTerrain[1] = true;
   }
 
   function reloadCytoscapeStyle(index) {
@@ -216,11 +287,20 @@
 
   document.getElementById("edges").onclick = () => {
     if (document.getElementById("edges").checked) {
-      edgeElements.restore();
+      edgeElements[0].restore();
     } else {
-      edgeElements = edgeElements.remove();
+      edgeElements[0] = edgeElements[0].remove();
     }
-    reloadCytoscapeStyle();
+    reloadCytoscapeStyle(0);
+  };
+
+  document.getElementById("edges2").onclick = () => {
+    if (document.getElementById("edges2").checked) {
+      edgeElements[1].restore();
+    } else {
+      edgeElements[1] = edgeElements[1].remove();
+    }
+    reloadCytoscapeStyle(1);
   };
 
   // Get a GPU device to render with
@@ -421,10 +501,9 @@
   new Uint32Array(imageSizeBuffer.getMappedRange()).set([canvas[0].width, canvas[0].height]);
   imageSizeBuffer.unmap();
 
-  var overlayBoolBuffer = device.createBuffer({
-    size: 4,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
+  var overlayBoolBuffer = [];
+  var overlayCanvas = [];
+  var overlayTexture = [];
 
   // Setup render outputs
   var swapChainFormat = "bgra8unorm";
@@ -621,9 +700,7 @@
   }
 
   async function reloadViewBox(event, index) {
-    console.log(index);
     translation[index] = [cy[index].extent().x1 / 1200.0, cy[index].extent().y2 / -1200.0, cy[index].extent().x2 / 1200.0, cy[index].extent().y1 / -1200.0];
-    console.log(translation);
     recomputeTerrain[index] = true;
     fontSize[index] = (1 / cy[index].zoom()) * 0.5 * 24;
     nodeHeight[index] = (1 / cy[index].zoom()) * 0.5 * 16;
@@ -673,12 +750,12 @@
         },
         {
           binding: 2,
-          resource: overlayTexture.createView(),
+          resource: overlayTexture[0].createView(),
         },
         {
           binding: 3,
           resource: {
-            buffer: overlayBoolBuffer,
+            buffer: overlayBoolBuffer[0],
           }
         }
       ],
@@ -702,8 +779,7 @@
   }
 
   async function render(nodeData, index) {
-    console.log(nodeData);
-    nodeDataOriginal = [...nodeData];
+    nodeDataOriginal[index] = [...nodeData];
     // for (var k = 0; k < 406; k++) {
     //   if (nodeData[k * 4 + 1] > maxX) {
     //     maxX = nodeData[k * 4 + 1];
@@ -754,9 +830,14 @@
     console.log(new Int32Array(rangeBuffer.getMappedRange()));
 
     // Set up overlay
-    overlayCanvas = document.querySelectorAll("[data-id='layer2-node']")[0];
-    overlayTexture = device.createTexture({
-      size: [overlayCanvas.width, overlayCanvas.height, 1],
+    overlayBoolBuffer[index] = device.createBuffer({
+      size: 4,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+
+    overlayCanvas[index] = document.querySelectorAll("[data-id='layer2-node']")[index];
+    overlayTexture[index] = device.createTexture({
+      size: [overlayCanvas[index].width, overlayCanvas[index].height, 1],
       format: "rgba8unorm",
       usage: GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
     });
@@ -790,15 +871,15 @@
     //render!
     var frame = async function () {
       reloadCytoscapeStyle(index);
-      if (document.getElementById("overlay").checked) {
+      if (document.getElementById(`overlay${index > 0 ? "2" : ""}`).checked) {
         // Setup overlay
         var overlayImage = new Image();
-        overlayImage.src = overlayCanvas.toDataURL();
+        overlayImage.src = overlayCanvas[index].toDataURL();
         await overlayImage.decode();
         const imageBitmap = await createImageBitmap(overlayImage);
         device.queue.copyExternalImageToTexture(
           { source: imageBitmap },
-          { texture: overlayTexture },
+          { texture: overlayTexture[index] },
           [imageBitmap.width, imageBitmap.height, 1]
         );
       }
@@ -886,12 +967,12 @@
             },
             {
               binding: 2,
-              resource: overlayTexture.createView(),
+              resource: overlayTexture[index].createView(),
             },
             {
               binding: 3,
               resource: {
-                buffer: overlayBoolBuffer,
+                buffer: overlayBoolBuffer[index],
               }
             }
           ],
