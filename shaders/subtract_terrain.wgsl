@@ -2,9 +2,8 @@
 [[block]] struct Uniforms {
   image_width : u32;
   image_height : u32;
-  nodes_length : u32;
-  width_factor : f32;
-  view_box : vec4<f32>;
+  a_factor : f32;
+  b_factor : f32;
 };
 [[block]] struct Pixels {
     pixels : array<f32>;
@@ -23,7 +22,7 @@
 [[stage(compute), workgroup_size(1, 1, 1)]]
 fn main([[builtin(global_invocation_id)]] global_id : vec3<u32>) {
     var pixel_index : u32 = global_id.x + global_id.y * uniforms.image_width;
-    var value : f32 = (10.0 * pixelsA.pixels[pixel_index]) - (10.0 * pixelsB.pixels[pixel_index]);
+    var value : f32 = (100.0 * uniforms.a_factor * pixelsA.pixels[pixel_index]) - (100.0 * uniforms.b_factor * pixelsB.pixels[pixel_index]);
     ignore(atomicMin(&range.x, i32(floor(value))));
     ignore(atomicMax(&range.y, i32(ceil(value))));
     pixelsC.pixels[pixel_index] = value;

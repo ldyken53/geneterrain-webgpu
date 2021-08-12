@@ -41,6 +41,7 @@ fn main([[builtin(global_invocation_id)]] global_id : vec3<u32>) {
         var sqrDistance : f32 = (x - nodes.nodes[i].x) * (x - nodes.nodes[i].x) + (y - nodes.nodes[i].y) * (y - nodes.nodes[i].y);
         value = value + nodes.nodes[i].value / (sqrDistance * uniforms.width_factor + 1.0);
     }
+    value = value * 100.0;
     ignore(atomicMin(&range.x, i32(floor(value))));
     ignore(atomicMax(&range.y, i32(ceil(value))));
     pixels.pixels[pixel_index] = value;
@@ -235,9 +236,8 @@ const  subtract_terrain = `// subtract terrain wgsl
 [[block]] struct Uniforms {
   image_width : u32;
   image_height : u32;
-  nodes_length : u32;
-  width_factor : f32;
-  view_box : vec4<f32>;
+  a_factor : f32;
+  b_factor : f32;
 };
 [[block]] struct Pixels {
     pixels : array<f32>;
@@ -256,7 +256,7 @@ const  subtract_terrain = `// subtract terrain wgsl
 [[stage(compute), workgroup_size(1, 1, 1)]]
 fn main([[builtin(global_invocation_id)]] global_id : vec3<u32>) {
     var pixel_index : u32 = global_id.x + global_id.y * uniforms.image_width;
-    var value : f32 = (10.0 * pixelsA.pixels[pixel_index]) - (10.0 * pixelsB.pixels[pixel_index]);
+    var value : f32 = (100.0 * uniforms.a_factor * pixelsA.pixels[pixel_index]) - (100.0 * uniforms.b_factor * pixelsB.pixels[pixel_index]);
     ignore(atomicMin(&range.x, i32(floor(value))));
     ignore(atomicMax(&range.y, i32(ceil(value))));
     pixelsC.pixels[pixel_index] = value;

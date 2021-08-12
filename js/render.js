@@ -314,7 +314,9 @@
   var subtractContext = subtractCanvas.getContext("webgpu");
 
   document.getElementById("subtract").onclick = async function () {
-    await terrainSubtracter.subtractTerrain(terrainGenerator[0].pixelValueBuffer, terrainGenerator[1].pixelValueBuffer);
+    var aFactor = parseFloat(document.getElementById("aFactor").value);
+    var bFactor = parseFloat(document.getElementById("bFactor").value);
+    await terrainSubtracter.subtractTerrain(terrainGenerator[0].pixelValueBuffer, terrainGenerator[1].pixelValueBuffer, aFactor, bFactor);
     document.getElementById("compare-label").innerText = `Mean Squared Error: ${terrainSubtracter.MSE}`;
     var maxDiff = [0, 0, 0, 0, 0];
     var absMaxDiff = [0, 0, 0, 0, 0];

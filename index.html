@@ -57,7 +57,15 @@
   <canvas id="subtract-canvas" class="img-fluid" style="position: absolute; top: 350px;
     left: 1216px; background-color: white;" width="600" height="600"></canvas>
   <button style="position: absolute; top: 950px;
-  left: 1524px;" id="subtract">Display Subtracted Terrains</button>
+  left: 1524px;" id="subtract">Display Compared Terrains</button>
+  <input style="position: absolute; top: 1000px;
+  left: 1524px;" type="number" id="aFactor" value="1" min="-10" max="10">
+  <label style="position: absolute; top: 980px;
+  left: 1524px;" for="aFactor">1st Terrain Factor</label>
+  <input style="position: absolute; top: 1000px;
+    left: 1674px;" type="number" id="bFactor" value="1" min="-10" max="10">
+  <label style="position: absolute; top: 980px;
+  left: 1674px;" for="bFactor">2nd Terrain Factor</label>
   <label style="position: absolute; top: 950px;
     left: 1216px;" id="compare-label">Mean Squared Error:</label>
   <textarea rows="6" cols="36" style="position: absolute; top: 980px; left: 1216px;" id="node-difference">

@@ -105,7 +105,7 @@ var TerrainSubtracter = function (device, canvas) {
 };
 
 TerrainSubtracter.prototype.subtractTerrain =
-    async function (pixelsA, pixelsB) {
+    async function (pixelsA, pixelsB, aFactor, bFactor) {
         // Have to reset range buffer
         this.rangeBuffer = this.device.createBuffer({
             size: 2 * 4,
@@ -120,6 +120,8 @@ TerrainSubtracter.prototype.subtractTerrain =
         });
         var mapping = upload.getMappedRange();
         new Uint32Array(mapping).set([this.canvas.width, this.canvas.height]);
+        console.log(aFactor, bFactor);
+        new Float32Array(mapping).set([aFactor, bFactor], 2);
         upload.unmap();
         var commandEncoder = this.device.createCommandEncoder();
         commandEncoder.copyBufferToBuffer(upload, 0, this.paramsBuffer, 0, 8 * 4);
