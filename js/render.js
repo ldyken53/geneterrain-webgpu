@@ -587,7 +587,7 @@
   });
   // Load the default colormap and upload it
   var colormapImage = new Image();
-  colormapImage.src = "colormaps/new-colormap.png";
+  colormapImage.src = "colormaps/rainbow.png";
   await colormapImage.decode();
   const imageBitmap = await createImageBitmap(colormapImage);
   var colorTexture = device.createTexture({

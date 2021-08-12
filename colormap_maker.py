@@ -13,5 +13,5 @@ if __name__ == "__main__":
         else:
             a[0][i] = [255, 0, 0, 255]
     im2 = Image.fromarray(a)
-    im2.save("colormaps/new-colormap.png")
+    im2.save("colormaps/rgb.png")
     im2.show()
