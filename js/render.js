@@ -587,7 +587,7 @@
   });
   // Load the default colormap and upload it
   var colormapImage = new Image();
-  colormapImage.src = "colormaps/rainbow.png";
+  colormapImage.src = "colormaps/new-colormap.png";
   await colormapImage.decode();
   const imageBitmap = await createImageBitmap(colormapImage);
   var colorTexture = device.createTexture({
@@ -701,6 +701,12 @@
 
   async function reloadViewBox(event, index) {
     translation[index] = [cy[index].extent().x1 / 1200.0, cy[index].extent().y2 / -1200.0, cy[index].extent().x2 / 1200.0, cy[index].extent().y1 / -1200.0];
+    if (document.getElementById("synch").checked) {
+      translation[1] = [cy[index].extent().x1 / 1200.0, cy[index].extent().y2 / -1200.0, cy[index].extent().x2 / 1200.0, cy[index].extent().y1 / -1200.0];
+      cy[1].zoom(cy[index].zoom());
+      cy[1].pan(cy[index].pan());
+      recomputeTerrain[1] = true;
+    }
     recomputeTerrain[index] = true;
     fontSize[index] = (1 / cy[index].zoom()) * 0.5 * 24;
     nodeHeight[index] = (1 / cy[index].zoom()) * 0.5 * 16;
