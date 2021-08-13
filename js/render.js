@@ -41,7 +41,7 @@
           // nodeValue, nodeX, nodeY, nodeSize
           nodeData.push(parseFloat(nodeIDToValue[parts[0]]), parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3]));
           // Pushes value for cytoscape
-          nodeElements.push({ data: { id: parts[0], index: i, opacity: 1 }, position: { x: 1200 * parseFloat(parts[1]), y: -1200 * parseFloat(parts[2]) } });
+          nodeElements.push({ data: { id: parts[0], index: i, opacity: 1, color: 'gray' }, position: { x: 1200 * parseFloat(parts[1]), y: -1200 * parseFloat(parts[2]) } });
           i += 1;
         }
       }
@@ -262,7 +262,8 @@
           'background-opacity': 1,
           'border-width': 1,
           'border-color': 'gray',
-          'opacity': 'data(opacity)'
+          'opacity': 'data(opacity)',
+          'background-color': `data(color)`,
         }
       },
       {
@@ -320,12 +321,14 @@
     document.getElementById("compare-label").innerText = `Mean Squared Error: ${terrainSubtracter.MSE}`;
     var maxDiff = [0, 0, 0, 0, 0];
     var absMaxDiff = [0, 0, 0, 0, 0];
+    var indices = [0, 0, 0, 0, 0];
     var id = ["", "", "", "", ""];
     for (element of nodeElements[0]) {
       var diff = nodeIDToValue[0][element.data.id] - nodeIDToValue[1][element.data.id];
       var absMin = Math.min(...absMaxDiff);
       if (Math.abs(diff) > absMin) {
         var absMindex = absMaxDiff.indexOf(absMin);
+        indices[absMindex] = element.data.index;
         id[absMindex] = element.data.id;
         absMaxDiff[absMindex] = Math.abs(diff);
         maxDiff[absMindex] = diff;
@@ -333,6 +336,8 @@
     }
     var diffString = "Max Gene Differences\n";
     for (var i = 0; i < 5; i++) {
+      nodeElements[0][indices[i]].data.color = "red";
+      nodeElements[1][indices[i]].data.color = "red";
       diffString += `${id[i]}: ${maxDiff[i]}\n`
     }
     document.getElementById("node-difference").value = diffString;
@@ -675,7 +680,8 @@
           'background-opacity': 1,
           'border-width': 1,
           'border-color': 'gray',
-          'opacity': 'data(opacity)'
+          'opacity': 'data(opacity)',
+          'background-color': 'data(color)',
         }
       },
       {
