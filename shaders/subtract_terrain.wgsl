@@ -22,7 +22,7 @@
 [[stage(compute), workgroup_size(1, 1, 1)]]
 fn main([[builtin(global_invocation_id)]] global_id : vec3<u32>) {
     var pixel_index : u32 = global_id.x + global_id.y * uniforms.image_width;
-    var value : f32 = (100.0 * uniforms.a_factor * pixelsA.pixels[pixel_index]) - (100.0 * uniforms.b_factor * pixelsB.pixels[pixel_index]);
+    var value : f32 = (100.0 * uniforms.a_factor * pixelsA.pixels[pixel_index]) + (100.0 * uniforms.b_factor * pixelsB.pixels[pixel_index]);
     ignore(atomicMin(&range.x, i32(floor(value))));
     ignore(atomicMax(&range.y, i32(ceil(value))));
     pixelsC.pixels[pixel_index] = value;

@@ -743,47 +743,109 @@
   }
 
   var subtractFrame = async function () {
-    var bindGroup = device.createBindGroup({
-      layout: displayTerrain2DBGLayout,
-      entries: [
-        {
-          binding: 0,
-          resource: colorTexture.createView(),
-        },
-        {
-          binding: 1,
-          resource: {
-            buffer: terrainSubtracter.pixelValueBuffer,
+    if (document.getElementById("3d").checked) {
+      var bindGroup = device.createBindGroup({
+        layout: displayTerrain3DBGLayout,
+        entries: [
+          {
+            binding: 0,
+            resource: {
+              buffer: viewParamsBuffer,
+            },
+          },
+          {
+            binding: 1,
+            resource: colorTexture.createView(),
+          },
+          {
+            binding: 2,
+            resource: {
+              buffer: terrainSubtracter.pixelValueBuffer,
+            }
+          },
+          {
+            binding: 3,
+            resource: {
+              buffer: imageSizeBuffer,
+            }
           }
-        },
-        {
-          binding: 2,
-          resource: overlayTexture[0].createView(),
-        },
-        {
-          binding: 3,
-          resource: {
-            buffer: overlayBoolBuffer[0],
+        ],
+      });
+
+      renderPassDesc.colorAttachments[0].view = subtractContext.getCurrentTexture().createView();
+
+      // Compute and upload the combined projection and view matrix
+      projView = mat4.mul(projView, projection, camera.camera);
+      var upload = device.createBuffer({
+        size: 20 * 4,
+        usage: GPUBufferUsage.COPY_SRC,
+        mappedAtCreation: true,
+      });
+      var map = new Float32Array(upload.getMappedRange());
+      map.set(projView);
+      map.set(camera.eyePos(), 16);
+      upload.unmap();
+
+      var commandEncoder = device.createCommandEncoder();
+
+      // Copy the upload buffer to our uniform buffer
+      commandEncoder.copyBufferToBuffer(upload, 0, viewParamsBuffer, 0, 20 * 4);
+
+      var renderPass = commandEncoder.beginRenderPass(renderPassDesc);
+
+      renderPass.setPipeline(renderPipeline3D);
+      renderPass.setVertexBuffer(0, dataBuf3D);
+      // Set the bind group to its associated slot
+      renderPass.setBindGroup(0, bindGroup);
+      renderPass.draw(12 * 3, 1, 0, 0);
+
+      renderPass.endPass();
+      device.queue.submit([commandEncoder.finish()]);
+      requestAnimationFrame(subtractFrame);
+    }
+    else {
+      var bindGroup = device.createBindGroup({
+        layout: displayTerrain2DBGLayout,
+        entries: [
+          {
+            binding: 0,
+            resource: colorTexture.createView(),
+          },
+          {
+            binding: 1,
+            resource: {
+              buffer: terrainSubtracter.pixelValueBuffer,
+            }
+          },
+          {
+            binding: 2,
+            resource: overlayTexture[0].createView(),
+          },
+          {
+            binding: 3,
+            resource: {
+              buffer: overlayBoolBuffer[0],
+            }
           }
-        }
-      ],
-    });
+        ],
+      });
 
-    renderPassDesc.colorAttachments[0].view = subtractContext.getCurrentTexture().createView();
+      renderPassDesc.colorAttachments[0].view = subtractContext.getCurrentTexture().createView();
 
-    var commandEncoder = device.createCommandEncoder();
+      var commandEncoder = device.createCommandEncoder();
 
-    var renderPass = commandEncoder.beginRenderPass(renderPassDesc);
+      var renderPass = commandEncoder.beginRenderPass(renderPassDesc);
 
-    renderPass.setPipeline(renderPipeline2D);
-    renderPass.setVertexBuffer(0, dataBuf2D);
-    // Set the bind group to its associated slot
-    renderPass.setBindGroup(0, bindGroup);
-    renderPass.draw(6, 1, 0, 0);
+      renderPass.setPipeline(renderPipeline2D);
+      renderPass.setVertexBuffer(0, dataBuf2D);
+      // Set the bind group to its associated slot
+      renderPass.setBindGroup(0, bindGroup);
+      renderPass.draw(6, 1, 0, 0);
 
-    renderPass.endPass();
-    device.queue.submit([commandEncoder.finish()]);
-    requestAnimationFrame(subtractFrame);
+      renderPass.endPass();
+      device.queue.submit([commandEncoder.finish()]);
+      requestAnimationFrame(subtractFrame);
+    }
   }
 
   async function render(nodeData, index) {
