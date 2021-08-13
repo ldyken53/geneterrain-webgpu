@@ -12,6 +12,7 @@
   this.layoutData = null;
   this.widthFactor = [document.getElementById("width").value, document.getElementById("width2").value];
   this.recomputeTerrain = [false, false];
+  this.recomputeSubtract = false;
   this.translation = [[0, 0, 1, 1], [0, 0, 1, 1]];
   this.fontSize = [24, 24];
   this.nodeHeight = [16, 16];
@@ -313,36 +314,6 @@
   var subtractCanvas = document.getElementById("subtract-canvas");
   var terrainSubtracter = new TerrainSubtracter(device, subtractCanvas);
   var subtractContext = subtractCanvas.getContext("webgpu");
-
-  document.getElementById("subtract").onclick = async function () {
-    var aFactor = parseFloat(document.getElementById("aFactor").value);
-    var bFactor = parseFloat(document.getElementById("bFactor").value);
-    await terrainSubtracter.subtractTerrain(terrainGenerator[0].pixelValueBuffer, terrainGenerator[1].pixelValueBuffer, aFactor, bFactor);
-    document.getElementById("compare-label").innerText = `Mean Squared Error: ${terrainSubtracter.MSE}`;
-    var maxDiff = [0, 0, 0, 0, 0];
-    var absMaxDiff = [0, 0, 0, 0, 0];
-    var indices = [0, 0, 0, 0, 0];
-    var id = ["", "", "", "", ""];
-    for (element of nodeElements[0]) {
-      var diff = nodeIDToValue[0][element.data.id] - nodeIDToValue[1][element.data.id];
-      var absMin = Math.min(...absMaxDiff);
-      if (Math.abs(diff) > absMin) {
-        var absMindex = absMaxDiff.indexOf(absMin);
-        indices[absMindex] = element.data.index;
-        id[absMindex] = element.data.id;
-        absMaxDiff[absMindex] = Math.abs(diff);
-        maxDiff[absMindex] = diff;
-      }
-    }
-    var diffString = "Max Gene Differences\n";
-    for (var i = 0; i < 5; i++) {
-      nodeElements[0][indices[i]].data.color = "red";
-      nodeElements[1][indices[i]].data.color = "red";
-      diffString += `${id[i]}: ${maxDiff[i]}\n`
-    }
-    document.getElementById("node-difference").value = diffString;
-    requestAnimationFrame(subtractFrame);
-  };
 
   var vertModule3D = device.createShaderModule({ code: display_3d_vert });
   var fragModule3D = device.createShaderModule({ code: display_3d_frag });
@@ -748,7 +719,55 @@
 
   }
 
+  document.getElementById("aFactor").oninput = function () {
+    recomputeSubtract = true;
+  }
+
+  document.getElementById("bFactor").oninput = function () {
+    recomputeSubtract = true;
+  }
+
+  document.getElementById("subtract").onclick = async function () {
+    var aFactor = parseFloat(document.getElementById("aFactor").value);
+    var bFactor = parseFloat(document.getElementById("bFactor").value);
+    await terrainSubtracter.subtractTerrain(terrainGenerator[0].pixelValueBuffer, terrainGenerator[1].pixelValueBuffer, aFactor, bFactor);
+    recomputeSubtract = false;
+    document.getElementById("compare-label").innerText = `Mean Squared Error: ${terrainSubtracter.MSE}`;
+    var maxDiff = [0, 0, 0, 0, 0];
+    var absMaxDiff = [0, 0, 0, 0, 0];
+    var indices = [0, 0, 0, 0, 0];
+    var id = ["", "", "", "", ""];
+    for (element of nodeElements[0]) {
+      var diff = nodeIDToValue[0][element.data.id] - nodeIDToValue[1][element.data.id];
+      var absMin = Math.min(...absMaxDiff);
+      if (Math.abs(diff) > absMin) {
+        var absMindex = absMaxDiff.indexOf(absMin);
+        indices[absMindex] = element.data.index;
+        id[absMindex] = element.data.id;
+        absMaxDiff[absMindex] = Math.abs(diff);
+        maxDiff[absMindex] = diff;
+      }
+    }
+    var diffString = "Max Gene Differences\n";
+    for (var i = 0; i < 5; i++) {
+      nodeElements[0][indices[i]].data.color = "red";
+      nodeElements[1][indices[i]].data.color = "red";
+      diffString += `${id[i]}: ${maxDiff[i]}\n`
+    }
+    document.getElementById("node-difference").value = diffString;
+    requestAnimationFrame(subtractFrame);
+  };
+
   var subtractFrame = async function () {
+    if (recomputeSubtract) {
+      var aFactor = parseFloat(document.getElementById("aFactor").value);
+      var bFactor = parseFloat(document.getElementById("bFactor").value);
+      start = performance.now()
+      await terrainSubtracter.subtractTerrain(terrainGenerator[0].pixelValueBuffer, terrainGenerator[1].pixelValueBuffer, aFactor, bFactor);
+      console.log(performance.now() - start);
+      document.getElementById("compare-label").innerText = `Mean Squared Error: ${terrainSubtracter.MSE}`;
+      recomputeSubtract = false;
+    }
     if (document.getElementById("3d").checked) {
       var bindGroup = device.createBindGroup({
         layout: displayTerrain3DBGLayout,
@@ -807,7 +826,6 @@
 
       renderPass.endPass();
       device.queue.submit([commandEncoder.finish()]);
-      requestAnimationFrame(subtractFrame);
     }
     else {
       var bindGroup = device.createBindGroup({
@@ -850,8 +868,8 @@
 
       renderPass.endPass();
       device.queue.submit([commandEncoder.finish()]);
-      requestAnimationFrame(subtractFrame);
     }
+    requestAnimationFrame(subtractFrame);
   }
 
   async function render(nodeData, index) {
@@ -964,6 +982,7 @@
         start = performance.now()
         await terrainGenerator[index].computeTerrain(nodeData, widthFactor[index], translation[index]);
         console.log(performance.now() - start);
+        recomputeSubtract = true;
         recomputeTerrain[index] = false;
       }
 

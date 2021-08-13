@@ -99,7 +99,6 @@ var TerrainGenerator = function (device, canvas) {
 
 TerrainGenerator.prototype.computeTerrain =
     async function (nodeData, widthFactor, translation) {
-        console.log(widthFactor);
         // Set up node data buffer
         this.nodeDataBuffer = this.device.createBuffer({
             size: nodeData.length * 4,

@@ -120,7 +120,6 @@ TerrainSubtracter.prototype.subtractTerrain =
         });
         var mapping = upload.getMappedRange();
         new Uint32Array(mapping).set([this.canvas.width, this.canvas.height]);
-        console.log(aFactor, bFactor);
         new Float32Array(mapping).set([aFactor, bFactor], 2);
         upload.unmap();
         var commandEncoder = this.device.createCommandEncoder();
@@ -171,6 +170,7 @@ TerrainSubtracter.prototype.subtractTerrain =
         this.device.queue.submit([commandEncoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
 
+        
         const mseBuffer = this.device.createBuffer({
             size: this.canvas.width * this.canvas.height * 4,
             usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
