@@ -309,7 +309,7 @@
   var adapter = await navigator.gpu.requestAdapter();
   var device = await adapter.requestDevice();
 
-  var terrainGenerator = [new TerrainGenerator(device, canvas[0]), new TerrainGenerator(device, canvas[1])];
+  var terrainGenerator = [new TerrainGenerator(device, [600, 600]), new TerrainGenerator(device, [600, 600])];
 
   var subtractCanvas = document.getElementById("subtract-canvas");
   var terrainSubtracter = new TerrainSubtracter(device, subtractCanvas);
@@ -413,6 +413,13 @@
         buffer: {
           type: "uniform"
         }
+      },
+      {
+        binding: 4,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: {
+          type: "uniform"
+        }
       }
     ],
   });
@@ -476,7 +483,7 @@
     usage: GPUBufferUsage.UNIFORM,
     mappedAtCreation: true
   });
-  new Uint32Array(imageSizeBuffer.getMappedRange()).set([canvas[0].width, canvas[0].height]);
+  new Uint32Array(imageSizeBuffer.getMappedRange()).set([600, 600]);
   imageSizeBuffer.unmap();
 
   var overlayBoolBuffer = [];
@@ -850,6 +857,12 @@
             resource: {
               buffer: overlayBoolBuffer[0],
             }
+          },
+          {
+            binding: 4,
+            resource: {
+              buffer: imageSizeBuffer
+            }
           }
         ],
       });
@@ -874,6 +887,10 @@
 
   async function render(nodeData, index) {
     nodeDataOriginal[index] = [...nodeData];
+    // var maxX = 0;
+    // var minX = 0;
+    // var minY = 0;
+    // var maxY = 0;
     // for (var k = 0; k < 406; k++) {
     //   if (nodeData[k * 4 + 1] > maxX) {
     //     maxX = nodeData[k * 4 + 1];
@@ -1068,6 +1085,12 @@
               binding: 3,
               resource: {
                 buffer: overlayBoolBuffer[index],
+              }
+            },
+            {
+              binding: 4,
+              resource: {
+                buffer: imageSizeBuffer,
               }
             }
           ],

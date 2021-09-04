@@ -1,6 +1,6 @@
-var TerrainGenerator = function (device, canvas) {
+var TerrainGenerator = function (device, imageSize) {
     this.device = device;
-    this.canvas = canvas;
+    this.imageSize = imageSize;
 
     this.computeTerrainBGLayout = device.createBindGroupLayout({
         entries: [
@@ -92,7 +92,7 @@ var TerrainGenerator = function (device, canvas) {
     });
 
     this.pixelValueBuffer = device.createBuffer({
-        size: this.canvas.width * this.canvas.height * 4,
+        size: this.imageSize[0] * this.imageSize[1] * 4,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
     });
 };
@@ -121,7 +121,7 @@ TerrainGenerator.prototype.computeTerrain =
             mappedAtCreation: true,
         });
         var mapping = upload.getMappedRange();
-        new Uint32Array(mapping).set([this.canvas.width, this.canvas.height, nodeData.length / 4]);
+        new Uint32Array(mapping).set([this.imageSize[0], this.imageSize[1], nodeData.length / 4]);
         new Float32Array(mapping).set([widthFactor, translation[0], translation[1], translation[2], translation[3]], 3);
         upload.unmap();
         var commandEncoder = this.device.createCommandEncoder();
@@ -161,7 +161,7 @@ TerrainGenerator.prototype.computeTerrain =
         var pass = commandEncoder.beginComputePass(this.computeTerrainPipeline);
         pass.setBindGroup(0, bindGroup);
         pass.setPipeline(this.computeTerrainPipeline);
-        pass.dispatch(this.canvas.width, this.canvas.height, 1);
+        pass.dispatch(this.imageSize[0], this.imageSize[1], 1);
         pass.endPass();
         this.device.queue.submit([commandEncoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
@@ -194,7 +194,7 @@ TerrainGenerator.prototype.computeTerrain =
         var pass = commandEncoder.beginComputePass(this.normalizeTerrainPipeline);
         pass.setBindGroup(0, bindGroup);
         pass.setPipeline(this.normalizeTerrainPipeline);
-        pass.dispatch(this.canvas.width, this.canvas.height, 1);
+        pass.dispatch(this.imageSize[0], this.imageSize[1], 1);
         pass.endPass();
         this.device.queue.submit([commandEncoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
