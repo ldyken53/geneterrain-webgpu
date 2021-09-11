@@ -11,6 +11,8 @@
   this.edgeElements = [[], []];
   this.layoutData = null;
   this.widthFactor = [document.getElementById("width").value, document.getElementById("width2").value];
+  this.peakValue = document.getElementById("peak").value;
+  this.valleyValue = document.getElementById("valley").value;
   this.recomputeTerrain = [false, false];
   this.recomputeSubtract = false;
   this.translation = [[0, 0, 1, 1], [0, 0, 1, 1]];
@@ -128,7 +130,7 @@
     upload.unmap();
 
     var commandEncoder = device.createCommandEncoder();
-    commandEncoder.copyBufferToBuffer(upload, 0, overlayBoolBuffer[0], 0, 4);
+    commandEncoder.copyBufferToBuffer(upload, 0, uniform2DBuffer[0], 0, 4);
     device.queue.submit([commandEncoder.finish()]);
   };
 
@@ -147,7 +149,7 @@
     upload.unmap();
 
     var commandEncoder = device.createCommandEncoder();
-    commandEncoder.copyBufferToBuffer(upload, 0, overlayBoolBuffer[1], 0, 4);
+    commandEncoder.copyBufferToBuffer(upload, 0, uniform2DBuffer[1], 0, 4);
     device.queue.submit([commandEncoder.finish()]);
   };
 
@@ -319,6 +321,8 @@
   var fragModule3D = device.createShaderModule({ code: display_3d_frag });
   var vertModule2D = device.createShaderModule({ code: display_2d_vert });
   var fragModule2D = device.createShaderModule({ code: display_2d_frag });
+  var vertModuleLine = device.createShaderModule({ code: draw_lines_vert });
+  var fragModuleLine = device.createShaderModule({ code: draw_lines_frag });
 
   // Setup shader modules
   var vertex3D = {
@@ -352,6 +356,10 @@
         ],
       },
     ],
+  };
+  var vertexLine = {
+    module: vertModuleLine,
+    entryPoint: "main"
   };
 
   // Create the bind group layout
@@ -486,7 +494,7 @@
   new Uint32Array(imageSizeBuffer.getMappedRange()).set([600, 600]);
   imageSizeBuffer.unmap();
 
-  var overlayBoolBuffer = [];
+  var uniform2DBuffer = [];
   var overlayCanvas = [];
   var overlayTexture = [];
 
@@ -570,6 +578,35 @@
       depthCompare: "less",
     },
   });
+  // var renderPipelineLine = device.createRenderPipeline({
+  //   vertex: vertexLine,
+  //   fragment: {
+  //     module: fragModuleLine,
+  //     entryPoint: "main",
+  //     targets: [{
+  //       format: swapChainFormat
+  //     }]
+  //   },
+  //   primitive: {
+  //     topology: 'line-list'
+  //   }
+  // });
+  // const commandEncoder = device.createCommandEncoder();
+  // const textureView = context[0].getCurrentTexture().createView();
+
+  // const renderPass = commandEncoder.beginRenderPass({
+  //   colorAttachments: [{
+  //     view: textureView,
+  //     loadValue: [0.5, 0.5, 0.8, 1], //background color
+  //     storeOp: 'store'
+  //   }]
+  // });
+  // renderPass.setPipeline(renderPipelineLine);
+  // renderPass.draw(30);
+  // renderPass.endPass();
+
+  // device.queue.submit([commandEncoder.finish()]);
+
   // Load the default colormap and upload it
   var colormapImage = new Image();
   colormapImage.src = "colormaps/rainbow.png";
@@ -855,7 +892,7 @@
           {
             binding: 3,
             resource: {
-              buffer: overlayBoolBuffer[0],
+              buffer: uniform2DBuffer[0],
             }
           },
           {
@@ -917,7 +954,7 @@
     //   nodeData[k * 4 + 2] = (nodeData[k * 4 + 2] - minY) / (maxY - minY);
     // }
 
-    await terrainGenerator[index].computeTerrain(nodeData, widthFactor[index], translation[index]);
+    await terrainGenerator[index].computeTerrain(nodeData, widthFactor[index], translation[index], document.getElementById("global").checked);
 
     const rangeBuffer = device.createBuffer({
       size: 2 * 4,
@@ -941,10 +978,21 @@
     console.log(new Int32Array(rangeBuffer.getMappedRange()));
 
     // Set up overlay
-    overlayBoolBuffer[index] = device.createBuffer({
-      size: 4,
+    uniform2DBuffer[index] = device.createBuffer({
+      size: 3 * 4,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
+    var upload = device.createBuffer({
+      size: 2 * 4,
+      usage: GPUBufferUsage.COPY_SRC,
+      mappedAtCreation: true,
+    });
+    var map = new Float32Array(upload.getMappedRange());
+    map.set([this.peakValue, this.valleyValue]);
+    upload.unmap();
+    var commandEncoder = device.createCommandEncoder();
+    commandEncoder.copyBufferToBuffer(upload, 0, uniform2DBuffer[index], 4, 2 * 4);
+    device.queue.submit([commandEncoder.finish()]);
 
     overlayCanvas[index] = document.querySelectorAll("[data-id='layer2-node']")[index];
     overlayTexture[index] = device.createTexture({
@@ -997,7 +1045,7 @@
 
       if (recomputeTerrain[index]) {
         start = performance.now()
-        await terrainGenerator[index].computeTerrain(nodeData, widthFactor[index], translation[index]);
+        await terrainGenerator[index].computeTerrain(nodeData, widthFactor[index], translation[index], document.getElementById("global").checked);
         console.log(performance.now() - start);
         recomputeSubtract = true;
         recomputeTerrain[index] = false;
@@ -1064,6 +1112,8 @@
         requestAnimationFrame(frame);
       }
       else {
+        this.peakValue = document.getElementById("peak").value;
+        this.valleyValue = document.getElementById("valley").value;
         var bindGroup = device.createBindGroup({
           layout: displayTerrain2DBGLayout,
           entries: [
@@ -1084,7 +1134,7 @@
             {
               binding: 3,
               resource: {
-                buffer: overlayBoolBuffer[index],
+                buffer: uniform2DBuffer[index],
               }
             },
             {
@@ -1099,6 +1149,16 @@
         renderPassDesc.colorAttachments[0].view = context[index].getCurrentTexture().createView();
 
         var commandEncoder = device.createCommandEncoder();
+
+        var upload = device.createBuffer({
+          size: 2 * 4,
+          usage: GPUBufferUsage.COPY_SRC,
+          mappedAtCreation: true,
+        });
+        var map = new Float32Array(upload.getMappedRange());
+        map.set([this.peakValue, this.valleyValue]);
+        upload.unmap();
+        commandEncoder.copyBufferToBuffer(upload, 0, uniform2DBuffer[index], 4, 2 * 4);
 
         var renderPass = commandEncoder.beginRenderPass(renderPassDesc);
 

@@ -95,10 +95,15 @@ var TerrainGenerator = function (device, imageSize) {
         size: this.imageSize[0] * this.imageSize[1] * 4,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
     });
+
+    this.rangeBuffer = this.device.createBuffer({
+        size: 2 * 4,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    });
 };
 
 TerrainGenerator.prototype.computeTerrain =
-    async function (nodeData, widthFactor, translation) {
+    async function (nodeData, widthFactor, translation, globalRange) {
         // Set up node data buffer
         this.nodeDataBuffer = this.device.createBuffer({
             size: nodeData.length * 4,
@@ -108,11 +113,13 @@ TerrainGenerator.prototype.computeTerrain =
         new Float32Array(this.nodeDataBuffer.getMappedRange()).set(nodeData);
         this.nodeDataBuffer.unmap();
 
-        // Have to reset range buffer
-        this.rangeBuffer = this.device.createBuffer({
-            size: 2 * 4,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-        });
+        // Have to reset range buffer unless global range checked
+        if (!globalRange) {
+            this.rangeBuffer = this.device.createBuffer({
+                size: 2 * 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+            });
+        }
 
         // Set up params (image width, height, node length, and width factor)
         var upload = this.device.createBuffer({
