@@ -486,6 +486,12 @@
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
+  // Create global range buffer
+  var globalRangeBuffer = device.createBuffer({
+      size: 2 * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+  });
+
   var imageSizeBuffer = device.createBuffer({
     size: 2 * 4,
     usage: GPUBufferUsage.UNIFORM,
@@ -615,7 +621,7 @@
   var colorTexture = device.createTexture({
     size: [imageBitmap.width, imageBitmap.height, 1],
     format: "rgba8unorm",
-    usage: GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
   });
   device.queue.copyExternalImageToTexture(
     { source: imageBitmap },
@@ -954,7 +960,11 @@
     //   nodeData[k * 4 + 2] = (nodeData[k * 4 + 2] - minY) / (maxY - minY);
     // }
 
-    await terrainGenerator[index].computeTerrain(nodeData, widthFactor[index], translation[index], document.getElementById("global").checked);
+    if (document.getElementById("global").checked) {
+      await terrainGenerator[index].computeTerrain(nodeData, widthFactor[index], translation[index], globalRangeBuffer);
+    } else {
+      await terrainGenerator[index].computeTerrain(nodeData, widthFactor[index], translation[index]);
+    }
 
     const rangeBuffer = device.createBuffer({
       size: 2 * 4,
@@ -998,7 +1008,7 @@
     overlayTexture[index] = device.createTexture({
       size: [overlayCanvas[index].width, overlayCanvas[index].height, 1],
       format: "rgba8unorm",
-      usage: GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
     });
 
     // // Testing
@@ -1045,7 +1055,11 @@
 
       if (recomputeTerrain[index]) {
         start = performance.now()
-        await terrainGenerator[index].computeTerrain(nodeData, widthFactor[index], translation[index], document.getElementById("global").checked);
+        if (document.getElementById("global").checked) {
+          await terrainGenerator[index].computeTerrain(nodeData, widthFactor[index], translation[index], globalRangeBuffer);
+        } else {
+          await terrainGenerator[index].computeTerrain(nodeData, widthFactor[index], translation[index]);
+        }
         console.log(performance.now() - start);
         recomputeSubtract = true;
         recomputeTerrain[index] = false;

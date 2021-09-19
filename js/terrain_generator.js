@@ -96,10 +96,6 @@ var TerrainGenerator = function (device, imageSize) {
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
     });
 
-    this.rangeBuffer = this.device.createBuffer({
-        size: 2 * 4,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-    });
 };
 
 TerrainGenerator.prototype.computeTerrain =
@@ -119,6 +115,8 @@ TerrainGenerator.prototype.computeTerrain =
                 size: 2 * 4,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
             });
+        } else {
+            this.rangeBuffer = globalRange;
         }
 
         // Set up params (image width, height, node length, and width factor)
