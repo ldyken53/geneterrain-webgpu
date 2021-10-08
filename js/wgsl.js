@@ -117,7 +117,7 @@ fn main([[location(0)]] fragPosition: vec4<f32>) -> [[location(0)]] vec4<f32> {
     var pixelIndex : u32 = ufragPos.x + ufragPos.y * image_size.width;
     var value : f32 = pixels.pixels[pixelIndex];
     if (uniforms.overlay == u32(1)) {
-        var overlay_color : vec4<f32> = textureLoad(overlay, vec2<i32>(i32(ufragPos.x), (i32(image_size.width) - i32(ufragPos.y))), 0);
+        var overlay_color : vec4<f32> = textureLoad(overlay, vec2<i32>(i32(ufragPos.x) * 2, (i32(image_size.width) - i32(ufragPos.y)) * 2), 0);
         if (overlay_color.w > 0.2) {
             return overlay_color;
         }

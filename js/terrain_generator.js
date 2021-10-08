@@ -171,6 +171,9 @@ TerrainGenerator.prototype.computeTerrain =
         this.device.queue.submit([commandEncoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
 
+        // Look into submitting normalization and compute in one pass to improve speed, remove synchronizations
+        // Use writetimestamp for more accurate kernel timing
+
         // Run normalize terrain pass
         var bindGroup = this.device.createBindGroup({
             layout: this.normalizeTerrainBGLayout,
