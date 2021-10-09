@@ -1,0 +1,10 @@
+{
+    "compilerOptions": {
+      "outDir": "./built",
+      "allowJs": true,
+      "target": "es5",
+      "lib": ["ES2015", "DOM"],
+      "typeRoots": [ "./node_modules/@webgpu/types", "./node_modules/@types"]
+    },
+    "include": ["./src/**/*"]
+}

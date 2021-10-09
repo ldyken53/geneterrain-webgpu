@@ -129,7 +129,9 @@ TerrainGenerator.prototype.computeTerrain =
         new Uint32Array(mapping).set([this.imageSize[0], this.imageSize[1], nodeData.length / 4]);
         new Float32Array(mapping).set([widthFactor, translation[0], translation[1], translation[2], translation[3]], 3);
         upload.unmap();
+        this.device.createQuerySet({})
         var commandEncoder = this.device.createCommandEncoder();
+        commandEncoder.writeTimestamp();
         commandEncoder.copyBufferToBuffer(upload, 0, this.paramsBuffer, 0, 8 * 4);
         // Create bind group
         var bindGroup = this.device.createBindGroup({
@@ -168,6 +170,7 @@ TerrainGenerator.prototype.computeTerrain =
         pass.setPipeline(this.computeTerrainPipeline);
         pass.dispatch(this.imageSize[0], this.imageSize[1], 1);
         pass.endPass();
+        commandEncoder.writeTimestamp();
         this.device.queue.submit([commandEncoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
 
