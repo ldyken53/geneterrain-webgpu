@@ -1,42 +1,44 @@
-var TerrainSubtracter = function (device, canvas) {
+var TerrainSubtracter = function (device : GPUDevice, canvas) {
     this.device = device;
     this.canvas = canvas;
 
+    var storage : GPUBufferBindingType = "storage";
+    var uniform : GPUBufferBindingType = "uniform";
     this.subtractTerrainBGLayout = device.createBindGroupLayout({
         entries: [
             {
                 binding: 0,
                 visibility: GPUShaderStage.COMPUTE,
                 buffer: {
-                    type: "uniform",
+                    type: uniform,
                 }
             },
             {
                 binding: 1,
                 visibility: GPUShaderStage.COMPUTE,
                 buffer: {
-                    type: "storage",
+                    type: storage,
                 }
             },
             {
                 binding: 2,
                 visibility: GPUShaderStage.COMPUTE,
                 buffer: {
-                    type: "storage",
+                    type: storage,
                 }
             },
             {
                 binding: 3,
                 visibility: GPUShaderStage.COMPUTE,
                 buffer: {
-                    type: "storage",
+                    type: storage,
                 }
             },
             {
                 binding: 4,
                 visibility: GPUShaderStage.COMPUTE,
                 buffer: {
-                    type: "storage",
+                    type: storage,
                 }
             }
         ],
@@ -60,21 +62,21 @@ var TerrainSubtracter = function (device, canvas) {
                 binding: 0,
                 visibility: GPUShaderStage.COMPUTE,
                 buffer: {
-                    type: "storage",
+                    type: storage,
                 }
             },
             {
                 binding: 1,
                 visibility: GPUShaderStage.COMPUTE,
                 buffer: {
-                    type: "uniform",
+                    type: uniform,
                 }
             },
             {
                 binding: 2,
                 visibility: GPUShaderStage.COMPUTE,
                 buffer: {
-                    type: "storage",
+                    type: storage,
                 }
             }
         ],
@@ -229,3 +231,5 @@ TerrainSubtracter.prototype.subtractTerrain =
         this.device.queue.submit([commandEncoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
     };
+
+export default TerrainSubtracter;

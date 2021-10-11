@@ -1,105 +1,120 @@
-var TerrainGenerator = function (device, imageSize) {
-    this.device = device;
-    this.imageSize = imageSize;
+class TerrainGenerator {
+    public rangeBuffer : GPUBuffer;
+    public pixelValueBuffer : GPUBuffer;
+    public paramsBuffer : GPUBuffer;
+    public nodeDataBuffer : GPUBuffer;
+    public device : GPUDevice;
+    public width : number;
+    public height : number;
+    public computeTerrainPipeline : GPUComputePipeline;
+    public normalizeTerrainPipeline : GPUComputePipeline;
+    public computeTerrainBGLayout : GPUBindGroupLayout;
+    public normalizeTerrainBGLayout : GPUBindGroupLayout;
+    
+    constructor(device : GPUDevice, width, height) {
+        this.device = device;
+        this.width = width;
+        this.height = height;
 
-    this.computeTerrainBGLayout = device.createBindGroupLayout({
-        entries: [
-            {
-                binding: 0,
-                visibility: GPUShaderStage.COMPUTE,
-                buffer: {
-                    type: "storage",
-                }
-            },
-            {
-                binding: 1,
-                visibility: GPUShaderStage.COMPUTE,
-                buffer: {
-                    type: "uniform",
-                }
-            },
-            {
-                binding: 2,
-                visibility: GPUShaderStage.COMPUTE,
-                buffer: {
-                    type: "storage",
-                }
-            },
-            {
-                binding: 3,
-                visibility: GPUShaderStage.COMPUTE,
-                buffer: {
-                    type: "storage",
-                }
-            }
-        ],
-    });
 
-    this.computeTerrainPipeline = device.createComputePipeline({
-        layout: device.createPipelineLayout({
-            bindGroupLayouts: [this.computeTerrainBGLayout],
-        }),
-        compute: {
-            module: device.createShaderModule({
-                code: compute_terrain,
+        var storage : GPUBufferBindingType = "storage";
+        var uniform : GPUBufferBindingType = "uniform";
+        this.computeTerrainBGLayout = device.createBindGroupLayout({
+            entries: [
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: {
+                        type: storage,
+                    }
+                },
+                {
+                    binding: 1,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: {
+                        type: uniform,
+                    }
+                },
+                {
+                    binding: 2,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: {
+                        type: storage,
+                    }
+                },
+                {
+                    binding: 3,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: {
+                        type: storage,
+                    }
+                }
+            ],
+        });
+
+        this.computeTerrainPipeline = device.createComputePipeline({
+            layout: device.createPipelineLayout({
+                bindGroupLayouts: [this.computeTerrainBGLayout],
             }),
-            entryPoint: "main",
-        },
-    });
-
-    this.normalizeTerrainBGLayout = device.createBindGroupLayout({
-        entries: [
-            {
-                binding: 0,
-                visibility: GPUShaderStage.COMPUTE,
-                buffer: {
-                    type: "storage",
-                }
+            compute: {
+                module: device.createShaderModule({
+                    code: compute_terrain,
+                }),
+                entryPoint: "main",
             },
-            {
-                binding: 1,
-                visibility: GPUShaderStage.COMPUTE,
-                buffer: {
-                    type: "uniform",
-                }
-            },
-            {
-                binding: 2,
-                visibility: GPUShaderStage.COMPUTE,
-                buffer: {
-                    type: "storage",
-                }
-            }
-        ],
-    });
+        });
 
-    this.normalizeTerrainPipeline = device.createComputePipeline({
-        layout: device.createPipelineLayout({
-            bindGroupLayouts: [this.normalizeTerrainBGLayout],
-        }),
-        compute: {
-            module: device.createShaderModule({
-                code: normalize_terrain,
+        this.normalizeTerrainBGLayout = device.createBindGroupLayout({
+            entries: [
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: {
+                        type: storage,
+                    }
+                },
+                {
+                    binding: 1,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: {
+                        type: uniform,
+                    }
+                },
+                {
+                    binding: 2,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: {
+                        type: storage,
+                    }
+                }
+            ],
+        });
+
+        this.normalizeTerrainPipeline = device.createComputePipeline({
+            layout: device.createPipelineLayout({
+                bindGroupLayouts: [this.normalizeTerrainBGLayout],
             }),
-            entryPoint: "main",
-        },
-    });
+            compute: {
+                module: device.createShaderModule({
+                    code: normalize_terrain,
+                }),
+                entryPoint: "main",
+            },
+        });
 
-    // Create a buffer to store the params, output, and min/max
-    this.paramsBuffer = device.createBuffer({
-        size: 8 * 4,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    });
+        // Create a buffer to store the params, output, and min/max
+        this.paramsBuffer = device.createBuffer({
+            size: 8 * 4,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
 
-    this.pixelValueBuffer = device.createBuffer({
-        size: this.imageSize[0] * this.imageSize[1] * 4,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-    });
+        this.pixelValueBuffer = device.createBuffer({
+            size: this.width * this.height * 4,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+        });
+    }
 
-};
-
-TerrainGenerator.prototype.computeTerrain =
-    async function (nodeData, widthFactor, translation, globalRange) {
+    async computeTerrain(nodeData, widthFactor, translation, globalRange) {
         // Set up node data buffer
         this.nodeDataBuffer = this.device.createBuffer({
             size: nodeData.length * 4,
@@ -126,12 +141,12 @@ TerrainGenerator.prototype.computeTerrain =
             mappedAtCreation: true,
         });
         var mapping = upload.getMappedRange();
-        new Uint32Array(mapping).set([this.imageSize[0], this.imageSize[1], nodeData.length / 4]);
+        new Uint32Array(mapping).set([this.width, this.height, nodeData.length / 4]);
         new Float32Array(mapping).set([widthFactor, translation[0], translation[1], translation[2], translation[3]], 3);
         upload.unmap();
-        this.device.createQuerySet({})
+        //this.device.createQuerySet({})
         var commandEncoder = this.device.createCommandEncoder();
-        commandEncoder.writeTimestamp();
+        //commandEncoder.writeTimestamp();
         commandEncoder.copyBufferToBuffer(upload, 0, this.paramsBuffer, 0, 8 * 4);
         // Create bind group
         var bindGroup = this.device.createBindGroup({
@@ -168,9 +183,9 @@ TerrainGenerator.prototype.computeTerrain =
         var pass = commandEncoder.beginComputePass(this.computeTerrainPipeline);
         pass.setBindGroup(0, bindGroup);
         pass.setPipeline(this.computeTerrainPipeline);
-        pass.dispatch(this.imageSize[0], this.imageSize[1], 1);
+        pass.dispatch(this.width, this.height, 1);
         pass.endPass();
-        commandEncoder.writeTimestamp();
+        //commandEncoder.writeTimestamp();
         this.device.queue.submit([commandEncoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
 
@@ -205,8 +220,11 @@ TerrainGenerator.prototype.computeTerrain =
         var pass = commandEncoder.beginComputePass(this.normalizeTerrainPipeline);
         pass.setBindGroup(0, bindGroup);
         pass.setPipeline(this.normalizeTerrainPipeline);
-        pass.dispatch(this.imageSize[0], this.imageSize[1], 1);
+        pass.dispatch(this.width, this.height, 1);
         pass.endPass();
         this.device.queue.submit([commandEncoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
-    };
+    }
+}
+
+export default TerrainGenerator;
