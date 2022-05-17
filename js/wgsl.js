@@ -42,8 +42,8 @@ fn main([[builtin(global_invocation_id)]] global_id : vec3<u32>) {
         value = value + nodes.nodes[i].value / (sqrDistance * uniforms.width_factor + 1.0);
     }
     value = value * 100.0;
-    ignore(atomicMin(&range.x, i32(floor(value))));
-    ignore(atomicMax(&range.y, i32(ceil(value))));
+    atomicMin(&range.x, i32(floor(value)));
+    atomicMax(&range.y, i32(ceil(value)));
     pixels.pixels[pixel_index] = value;
 }`;
 const  normalize_terrain = `// normalize terrain wgsl
