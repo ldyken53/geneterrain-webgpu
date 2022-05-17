@@ -7,4 +7,3 @@ models/
 js/liblas.js
 js/liblas_wrapper.js
 glslc.exe
-node_modules
