@@ -3,10 +3,10 @@
     isovalue : f32;
     image_width : u32;
 };
-[[block]] struct Terrain {
+struct Terrain {
     values : array<f32>;
 };
-[[block]] struct Vertices {
+struct Vertices {
     values : array<f32>;
 }
 

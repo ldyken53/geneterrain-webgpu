@@ -5,20 +5,20 @@ struct Node {
     y : f32;
     size : f32;
 };
-[[block]] struct Nodes {
+struct Nodes {
     nodes : array<Node>;
 };
-[[block]] struct Uniforms {
+struct Uniforms {
   image_width : u32;
   image_height : u32;
   nodes_length : u32;
   width_factor : f32;
   view_box : vec4<f32>;
 };
-[[block]] struct Pixels {
+struct Pixels {
     pixels : array<f32>;
 };
-[[block]] struct Range {
+struct Range {
     x : atomic<i32>;
     y : atomic<i32>;
 };

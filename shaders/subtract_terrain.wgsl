@@ -1,14 +1,14 @@
 // subtract terrain wgsl
-[[block]] struct Uniforms {
+struct Uniforms {
   image_width : u32;
   image_height : u32;
   a_factor : f32;
   b_factor : f32;
 };
-[[block]] struct Pixels {
+struct Pixels {
     pixels : array<f32>;
 };
-[[block]] struct Range {
+struct Range {
     x : atomic<i32>;
     y : atomic<i32>;
 };
