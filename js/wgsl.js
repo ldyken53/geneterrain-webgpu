@@ -5,31 +5,31 @@ struct Node {
     y : f32;
     size : f32;
 };
-[[block]] struct Nodes {
+struct Nodes {
     nodes : array<Node>;
 };
-[[block]] struct Uniforms {
+struct Uniforms {
   image_width : u32;
   image_height : u32;
   nodes_length : u32;
   width_factor : f32;
   view_box : vec4<f32>;
 };
-[[block]] struct Pixels {
+struct Pixels {
     pixels : array<f32>;
 };
-[[block]] struct Range {
+struct Range {
     x : atomic<i32>;
     y : atomic<i32>;
 };
 
-[[group(0), binding(0)]] var<storage, read> nodes : Nodes;
-[[group(0), binding(1)]] var<uniform> uniforms : Uniforms;
-[[group(0), binding(2)]] var<storage, write> pixels : Pixels;
-[[group(0), binding(3)]] var<storage, read_write> range : Range;
+@group(0) @binding(0) var<storage, read> nodes : Nodes;
+@group(0) @binding(1) var<uniform> uniforms : Uniforms;
+@group(0) @binding(2) var<storage, write> pixels : Pixels;
+@group(0) @binding(3) var<storage, read_write> range : Range;
 
-[[stage(compute), workgroup_size(1, 1, 1)]]
-fn main([[builtin(global_invocation_id)]] global_id : vec3<u32>) {
+@stage(compute) @workgroup_size(1, 1, 1)
+fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     var pixel_index : u32 = global_id.x + global_id.y * uniforms.image_width;
     var x : f32 = f32(global_id.x) / f32(uniforms.image_width);
     var y : f32 = f32(global_id.y) / f32(uniforms.image_height);
@@ -47,37 +47,37 @@ fn main([[builtin(global_invocation_id)]] global_id : vec3<u32>) {
     pixels.pixels[pixel_index] = value;
 }`;
 const  normalize_terrain = `// normalize terrain wgsl
-[[block]] struct Uniforms {
+struct Uniforms {
   image_width : u32;
   image_height : u32;
   nodes_length : u32;
   width_factor : f32;
 };
-[[block]] struct Pixels {
+struct Pixels {
     pixels : array<f32>;
 };
-[[block]] struct Range {
+struct Range {
     x : i32;
     y : i32;
 };
 
-[[group(0), binding(0)]] var<storage, write> pixels : Pixels;
-[[group(0), binding(1)]] var<uniform> uniforms : Uniforms;
-[[group(0), binding(2)]] var<storage, read_write> range : Range;
+@group(0) @binding(0) var<storage, write> pixels : Pixels;
+@group(0) @binding(1) var<uniform> uniforms : Uniforms;
+@group(0) @binding(2) var<storage, read_write> range : Range;
 
-[[stage(compute), workgroup_size(1, 1, 1)]]
-fn main([[builtin(global_invocation_id)]] global_id : vec3<u32>) {
+@stage(compute) @workgroup_size(1, 1, 1)
+fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     var pixel_index : u32 = global_id.x + global_id.y * uniforms.image_width;
     pixels.pixels[pixel_index] = (pixels.pixels[pixel_index] - f32(range.x)) / f32(range.y - range.x);
 }`;
 const  display_2d_vert = `// Vertex shader
 struct VertexOutput {
-  [[builtin(position)]] Position : vec4<f32>;
-  [[location(0)]] fragPosition: vec4<f32>;
+  @builtin(position) Position : vec4<f32>;
+  @location(0) fragPosition: vec4<f32>;
 };
 
-[[stage(vertex)]]
-fn main([[location(0)]] position : vec4<f32>)
+@stage(vertex)
+fn main(@location(0) position : vec4<f32>)
      -> VertexOutput {
     var output : VertexOutput;
     output.Position = position;
@@ -88,31 +88,31 @@ fn main([[location(0)]] position : vec4<f32>)
 
 `;
 const  display_2d_frag = `// Fragment shader
-[[block]] struct Pixels {
+struct Pixels {
     pixels : array<f32>;
 };
-[[block]] struct Uniforms {
+struct Uniforms {
     overlay : u32;
     peak_value : f32;
     valley_value : f32;
 };
-[[block]] struct Image {
+struct Image {
     width : u32;
     height : u32;
 };
 
-[[group(0), binding(0)]] var myTexture: texture_2d<f32>;
-[[group(0), binding(1)]] var<storage, read> pixels : Pixels;
-[[group(0), binding(2)]] var overlay : texture_2d<f32>;
-[[group(0), binding(3)]] var<uniform> uniforms : Uniforms;
-[[group(0), binding(4)]] var<uniform> image_size : Image;
+@group(0) @binding(0) var myTexture: texture_2d<f32>;
+@group(0) @binding(1) var<storage, read> pixels : Pixels;
+@group(0) @binding(2) var overlay : texture_2d<f32>;
+@group(0) @binding(3) var<uniform> uniforms : Uniforms;
+@group(0) @binding(4) var<uniform> image_size : Image;
 
 fn outside_grid(p : vec2<u32>) -> bool {
     return any(p == vec2<u32>(u32(0))) || p.x == image_size.width || p.y == image_size.height;
 }
 
-[[stage(fragment)]]
-fn main([[location(0)]] fragPosition: vec4<f32>) -> [[location(0)]] vec4<f32> {
+@stage(fragment)
+fn main(@location(0) fragPosition: vec4<f32>) -> @location(0) vec4<f32> {
     var ufragPos : vec4<u32> = vec4<u32>(fragPosition * f32(image_size.width));
     var pixelIndex : u32 = ufragPos.x + ufragPos.y * image_size.width;
     var value : f32 = pixels.pixels[pixelIndex];
@@ -147,18 +147,18 @@ fn main([[location(0)]] fragPosition: vec4<f32>) -> [[location(0)]] vec4<f32> {
 }`;
 const  display_3d_vert = `// Vertex shader
 struct VertexOutput {
-  [[builtin(position)]] Position : vec4<f32>;
-  [[location(0)]] vray_dir: vec3<f32>;
-  [[location(1), interpolate(flat)]] transformed_eye: vec3<f32>;
+  @builtin(position) Position : vec4<f32>;
+  @location(0) vray_dir: vec3<f32>;
+  @location(1) @interpolate(flat) transformed_eye: vec3<f32>;
 };
-[[block]] struct Uniforms {
+struct Uniforms {
   proj_view : mat4x4<f32>;
   eye_pos : vec4<f32>;
 };
-[[group(0), binding(0)]] var<uniform> uniforms : Uniforms;
+@group(0) @binding(0) var<uniform> uniforms : Uniforms;
 
-[[stage(vertex)]]
-fn main([[location(0)]] position : vec3<f32>)
+@stage(vertex)
+fn main(@location(0) position : vec3<f32>)
      -> VertexOutput {
     var output : VertexOutput;
     var volume_translation : vec3<f32> = vec3<f32>(-0.5, -0.5, -0.5);
@@ -168,17 +168,17 @@ fn main([[location(0)]] position : vec3<f32>)
     return output;
 }`;
 const  display_3d_frag = `// Fragment shader
-[[block]] struct Pixels {
+struct Pixels {
     pixels : array<f32>;
 };
-[[block]] struct Image {
+struct Image {
     width : u32;
     height : u32;
 };
 
-[[group(0), binding(1)]] var colormap: texture_2d<f32>;
-[[group(0), binding(2)]] var<storage, read> pixels : Pixels;
-[[group(0), binding(3)]] var<uniform> image_size : Image;
+@group(0) @binding(1) var colormap: texture_2d<f32>;
+@group(0) @binding(2) var<storage, read> pixels : Pixels;
+@group(0) @binding(3) var<uniform> image_size : Image;
 
 fn intersect_box(orig : vec3<f32>, dir : vec3<f32>, box_min : vec3<f32>, box_max : vec3<f32>) -> vec2<f32> {
     let inv_dir : vec3<f32> = 1.0 / dir;
@@ -195,11 +195,11 @@ fn outside_grid(p : vec3<f32>, volumeDims : vec3<f32>) -> bool {
     return any(p < vec3<f32>(0.0)) || any(p >= volumeDims);
 }
 
-[[stage(fragment)]]
+@stage(fragment)
 fn main(
-  [[location(0)]] vray_dir: vec3<f32>, 
-  [[location(1), interpolate(flat)]] transformed_eye : vec3<f32>
-)-> [[location(0)]] vec4<f32> {
+  @location(0) vray_dir: vec3<f32>, 
+  @location(1) @interpolate(flat) transformed_eye : vec3<f32>
+)-> @location(0) vec4<f32> {
     var ray_dir : vec3<f32> = normalize(vray_dir);
     var longest_axis : f32 = f32(max(image_size.width, image_size.height));
     let volume_dims : vec3<f32> = vec3<f32>(f32(image_size.width), f32(image_size.height), f32(longest_axis));
@@ -237,7 +237,7 @@ fn main(
             if (value * longest_axis >= f32(v000.z)) {
                 return textureLoad(colormap, vec2<i32>(i32(value * 180.0), 1), 0);
             }
-        } elseif (f32(v000.z) < longest_axis / 2.0) {
+        } else if (f32(v000.z) < longest_axis / 2.0) {
             if (value * longest_axis <= f32(v000.z)) {
                 return textureLoad(colormap, vec2<i32>(i32(value * 180.0), 1), 0);
             }
@@ -250,7 +250,7 @@ fn main(
         if (t_next == t_max.x) {
             p.x = p.x + f32(grid_step.x);
             t_max.x = t_max.x + t_delta.x;
-        } elseif (t_next == t_max.y) {
+        } else if (t_next == t_max.y) {
             p.y = p.y + f32(grid_step.y);
             t_max.y = t_max.y + t_delta.y;
         } else {
@@ -263,40 +263,40 @@ fn main(
 
 `;
 const  subtract_terrain = `// subtract terrain wgsl
-[[block]] struct Uniforms {
+struct Uniforms {
   image_width : u32;
   image_height : u32;
   a_factor : f32;
   b_factor : f32;
 };
-[[block]] struct Pixels {
+struct Pixels {
     pixels : array<f32>;
 };
-[[block]] struct Range {
+struct Range {
     x : atomic<i32>;
     y : atomic<i32>;
 };
 
-[[group(0), binding(0)]] var<uniform> uniforms : Uniforms;
-[[group(0), binding(1)]] var<storage, write> pixelsA : Pixels;
-[[group(0), binding(2)]] var<storage, write> pixelsB : Pixels;
-[[group(0), binding(3)]] var<storage, write> pixelsC : Pixels;
-[[group(0), binding(4)]] var<storage, read_write> range : Range;
+@group(0) @binding(0) var<uniform> uniforms : Uniforms;
+@group(0) @binding(1) var<storage, write> pixelsA : Pixels;
+@group(0) @binding(2) var<storage, write> pixelsB : Pixels;
+@group(0) @binding(3) var<storage, write> pixelsC : Pixels;
+@group(0) @binding(4) var<storage, read_write> range : Range;
 
-[[stage(compute), workgroup_size(1, 1, 1)]]
-fn main([[builtin(global_invocation_id)]] global_id : vec3<u32>) {
+@stage(compute) @workgroup_size(1, 1, 1)
+fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     var pixel_index : u32 = global_id.x + global_id.y * uniforms.image_width;
     var value : f32 = (100.0 * uniforms.a_factor * pixelsA.pixels[pixel_index]) + (100.0 * uniforms.b_factor * pixelsB.pixels[pixel_index]);
-    ignore(atomicMin(&range.x, i32(floor(value))));
-    ignore(atomicMax(&range.y, i32(ceil(value))));
+    atomicMin(&range.x, i32(floor(value)));
+    atomicMax(&range.y, i32(ceil(value)));
     pixelsC.pixels[pixel_index] = value;
 }`;
-const  draw_lines_vert = `[[stage(vertex)]]
-fn main([[builtin(vertex_index)]] VertexIndex: u32) -> [[builtin(position)]] vec4<f32> {
+const  draw_lines_vert = `@stage(vertex)
+fn main(@builtin(vertex_index) VertexIndex: u32) -> @builtin(position) vec4<f32> {
     var x : f32 = f32(VertexIndex) / 3.0 - 1.0;
     return vec4<f32>(x, 0.0, 0.0, 1.0);
 }`;
-const  draw_lines_frag = `[[stage(fragment)]]
-fn main() ->  [[location(0)]] vec4<f32> {
+const  draw_lines_frag = `@stage(fragment)
+fn main() ->  @location(0) vec4<f32> {
     return vec4<f32>(1.0, 1.0, 0.0, 1.0);
 }`;

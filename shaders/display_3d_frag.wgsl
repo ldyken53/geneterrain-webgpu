@@ -7,9 +7,9 @@ struct Image {
     height : u32;
 };
 
-[[group(0), binding(1)]] var colormap: texture_2d<f32>;
-[[group(0), binding(2)]] var<storage, read> pixels : Pixels;
-[[group(0), binding(3)]] var<uniform> image_size : Image;
+@group(0) @binding(1) var colormap: texture_2d<f32>;
+@group(0) @binding(2) var<storage, read> pixels : Pixels;
+@group(0) @binding(3) var<uniform> image_size : Image;
 
 fn intersect_box(orig : vec3<f32>, dir : vec3<f32>, box_min : vec3<f32>, box_max : vec3<f32>) -> vec2<f32> {
     let inv_dir : vec3<f32> = 1.0 / dir;
@@ -26,11 +26,11 @@ fn outside_grid(p : vec3<f32>, volumeDims : vec3<f32>) -> bool {
     return any(p < vec3<f32>(0.0)) || any(p >= volumeDims);
 }
 
-[[stage(fragment)]]
+@stage(fragment)
 fn main(
-  [[location(0)]] vray_dir: vec3<f32>, 
-  [[location(1), interpolate(flat)]] transformed_eye : vec3<f32>
-)-> [[location(0)]] vec4<f32> {
+  @location(0) vray_dir: vec3<f32>, 
+  @location(1) @interpolate(flat) transformed_eye : vec3<f32>
+)-> @location(0) vec4<f32> {
     var ray_dir : vec3<f32> = normalize(vray_dir);
     var longest_axis : f32 = f32(max(image_size.width, image_size.height));
     let volume_dims : vec3<f32> = vec3<f32>(f32(image_size.width), f32(image_size.height), f32(longest_axis));
@@ -68,7 +68,7 @@ fn main(
             if (value * longest_axis >= f32(v000.z)) {
                 return textureLoad(colormap, vec2<i32>(i32(value * 180.0), 1), 0);
             }
-        } elseif (f32(v000.z) < longest_axis / 2.0) {
+        } else if (f32(v000.z) < longest_axis / 2.0) {
             if (value * longest_axis <= f32(v000.z)) {
                 return textureLoad(colormap, vec2<i32>(i32(value * 180.0), 1), 0);
             }
@@ -81,7 +81,7 @@ fn main(
         if (t_next == t_max.x) {
             p.x = p.x + f32(grid_step.x);
             t_max.x = t_max.x + t_delta.x;
-        } elseif (t_next == t_max.y) {
+        } else if (t_next == t_max.y) {
             p.y = p.y + f32(grid_step.y);
             t_max.y = t_max.y + t_delta.y;
         } else {

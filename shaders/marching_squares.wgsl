@@ -1,5 +1,5 @@
 // marching square wgsl
-[[block]] struct Uniforms {
+struct Uniforms {
     isovalue : f32;
     image_width : u32;
 };
@@ -10,13 +10,13 @@ struct Vertices {
     values : array<f32>;
 }
 
-[[group(0), binding(0)]] var<uniform> uniforms : Uniforms;
-[[group(0), binding(1)]] var<storage, read> terrain : Terrain;
-[[group(0), binding(2)]] var<storage, read> vertices : Vertices;
+@group(0) @binding(0) var<uniform> uniforms : Uniforms;
+@group(0) @binding(1) var<storage, read> terrain : Terrain;
+@group(0) @binding(2) var<storage, read> vertices : Vertices;
 
 
-[[stage(compute), workgroup_size(1, 1, 1)]]
-fn main([[builtin(global_invocation_id)]] global_id : vec3<u32>) {
+@stage(compute) @workgroup_size(1, 1, 1)
+fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     var pixel_index : u32 = global_id.x + global_id.y * uniforms.image_width;
     var corner_vals : vec4<f32> = vec4<f32>(
         terrain.values[global_id.x + global_id.y * uniforms.image_width], 
