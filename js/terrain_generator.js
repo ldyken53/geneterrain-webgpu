@@ -8,7 +8,7 @@ var TerrainGenerator = function (device, imageSize) {
                 binding: 0,
                 visibility: GPUShaderStage.COMPUTE,
                 buffer: {
-                    type: "storage",
+                    type: "read-only-storage",
                 }
             },
             {
@@ -166,8 +166,8 @@ TerrainGenerator.prototype.computeTerrain =
         var pass = commandEncoder.beginComputePass(this.computeTerrainPipeline);
         pass.setBindGroup(0, bindGroup);
         pass.setPipeline(this.computeTerrainPipeline);
-        pass.dispatch(this.imageSize[0], this.imageSize[1], 1);
-        pass.endPass();
+        pass.dispatchWorkgroups(this.imageSize[0], this.imageSize[1], 1);
+        pass.end();
         this.device.queue.submit([commandEncoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
 
@@ -202,8 +202,8 @@ TerrainGenerator.prototype.computeTerrain =
         var pass = commandEncoder.beginComputePass(this.normalizeTerrainPipeline);
         pass.setBindGroup(0, bindGroup);
         pass.setPipeline(this.normalizeTerrainPipeline);
-        pass.dispatch(this.imageSize[0], this.imageSize[1], 1);
-        pass.endPass();
+        pass.dispatchWorkgroups(this.imageSize[0], this.imageSize[1], 1);
+        pass.end();
         this.device.queue.submit([commandEncoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
     };

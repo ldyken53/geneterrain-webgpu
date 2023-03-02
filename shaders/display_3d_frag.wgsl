@@ -1,10 +1,10 @@
 // Fragment shader
 struct Pixels {
-    pixels : array<f32>;
+    pixels : array<f32>,
 };
 struct Image {
-    width : u32;
-    height : u32;
+    width : u32,
+    height : u32,
 };
 
 @group(0) @binding(1) var colormap: texture_2d<f32>;
@@ -26,7 +26,7 @@ fn outside_grid(p : vec3<f32>, volumeDims : vec3<f32>) -> bool {
     return any(p < vec3<f32>(0.0)) || any(p >= volumeDims);
 }
 
-@stage(fragment)
+@fragment
 fn main(
   @location(0) vray_dir: vec3<f32>, 
   @location(1) @interpolate(flat) transformed_eye : vec3<f32>

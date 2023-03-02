@@ -383,7 +383,7 @@
         binding: 2,
         visibility: GPUShaderStage.FRAGMENT,
         buffer: {
-          type: "storage"
+          type: "read-only-storage"
         }
       },
       {
@@ -407,7 +407,7 @@
         binding: 1,
         visibility: GPUShaderStage.FRAGMENT,
         buffer: {
-          type: "storage"
+          type: "read-only-storage"
         }
       },
       {
@@ -609,7 +609,7 @@
   // });
   // renderPass.setPipeline(renderPipelineLine);
   // renderPass.draw(30);
-  // renderPass.endPass();
+  // renderPass.end();
 
   // device.queue.submit([commandEncoder.finish()]);
 
@@ -634,13 +634,17 @@
     colorAttachments: [
       {
         view: undefined,
-        loadValue: [0.3, 0.3, 0.3, 1],
+        clearValue: [0.3, 0.3, 0.3, 1],
+        loadOp: 'clear',
+        storeOp: 'store'
       },
     ],
     depthStencilAttachment: {
       view: depthTexture.createView(),
+      depthLoadOp: 'clear',
       depthLoadValue: 1.0,
       depthStoreOp: "store",
+      stencilLoadOp: "clear",
       stencilLoadValue: 0,
       stencilStoreOp: "store",
     },
@@ -874,7 +878,7 @@
       renderPass.setBindGroup(0, bindGroup);
       renderPass.draw(12 * 3, 1, 0, 0);
 
-      renderPass.endPass();
+      renderPass.end();
       device.queue.submit([commandEncoder.finish()]);
     }
     else {
@@ -922,7 +926,7 @@
       renderPass.setBindGroup(0, bindGroup);
       renderPass.draw(6, 1, 0, 0);
 
-      renderPass.endPass();
+      renderPass.end();
       device.queue.submit([commandEncoder.finish()]);
     }
     requestAnimationFrame(subtractFrame);
@@ -1121,7 +1125,7 @@
         renderPass.setBindGroup(0, bindGroup);
         renderPass.draw(12 * 3, 1, 0, 0);
 
-        renderPass.endPass();
+        renderPass.end();
         device.queue.submit([commandEncoder.finish()]);
         requestAnimationFrame(frame);
       }
@@ -1182,7 +1186,7 @@
         renderPass.setBindGroup(0, bindGroup);
         renderPass.draw(6, 1, 0, 0);
 
-        renderPass.endPass();
+        renderPass.end();
         device.queue.submit([commandEncoder.finish()]);
         requestAnimationFrame(frame);
       }

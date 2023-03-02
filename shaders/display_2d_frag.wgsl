@@ -1,15 +1,15 @@
 // Fragment shader
 struct Pixels {
-    pixels : array<f32>;
+    pixels : array<f32>,
 };
 struct Uniforms {
-    overlay : u32;
-    peak_value : f32;
-    valley_value : f32;
+    overlay : u32,
+    peak_value : f32,
+    valley_value : f32,
 };
 struct Image {
-    width : u32;
-    height : u32;
+    width : u32,
+    height : u32,
 };
 
 @group(0) @binding(0) var myTexture: texture_2d<f32>;
@@ -22,7 +22,7 @@ fn outside_grid(p : vec2<u32>) -> bool {
     return any(p == vec2<u32>(u32(0))) || p.x == image_size.width || p.y == image_size.height;
 }
 
-@stage(fragment)
+@fragment
 fn main(@location(0) fragPosition: vec4<f32>) -> @location(0) vec4<f32> {
     var ufragPos : vec4<u32> = vec4<u32>(fragPosition * f32(image_size.width));
     var pixelIndex : u32 = ufragPos.x + ufragPos.y * image_size.width;

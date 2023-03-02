@@ -165,8 +165,8 @@ TerrainSubtracter.prototype.subtractTerrain =
         var pass = commandEncoder.beginComputePass(this.subtractTerrainPipeline);
         pass.setBindGroup(0, bindGroup);
         pass.setPipeline(this.subtractTerrainPipeline);
-        pass.dispatch(this.canvas.width, this.canvas.height, 1);
-        pass.endPass();
+        pass.dispatchWorkgroups(this.canvas.width, this.canvas.height, 1);
+        pass.end();
         this.device.queue.submit([commandEncoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
 
@@ -224,8 +224,8 @@ TerrainSubtracter.prototype.subtractTerrain =
         var pass = commandEncoder.beginComputePass(this.normalizeTerrainPipeline);
         pass.setBindGroup(0, bindGroup);
         pass.setPipeline(this.normalizeTerrainPipeline);
-        pass.dispatch(this.canvas.width, this.canvas.height, 1);
-        pass.endPass();
+        pass.dispatchWorkgroups(this.canvas.width, this.canvas.height, 1);
+        pass.end();
         this.device.queue.submit([commandEncoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
     };

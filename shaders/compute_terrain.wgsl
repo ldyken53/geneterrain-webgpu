@@ -1,34 +1,34 @@
 // compute terrain wgsl
 struct Node {
-    value : f32;
-    x : f32;
-    y : f32;
-    size : f32;
+    value : f32,
+    x : f32,
+    y : f32,
+    size : f32,
 };
 struct Nodes {
-    nodes : array<Node>;
+    nodes : array<Node>,
 };
 struct Uniforms {
-  image_width : u32;
-  image_height : u32;
-  nodes_length : u32;
-  width_factor : f32;
-  view_box : vec4<f32>;
+  image_width : u32,
+  image_height : u32,
+  nodes_length : u32,
+  width_factor : f32,
+  view_box : vec4<f32>,
 };
 struct Pixels {
-    pixels : array<f32>;
+    pixels : array<f32>,
 };
 struct Range {
-    x : atomic<i32>;
-    y : atomic<i32>;
+    x : atomic<i32>,
+    y : atomic<i32>,
 };
 
 @group(0) @binding(0) var<storage, read> nodes : Nodes;
 @group(0) @binding(1) var<uniform> uniforms : Uniforms;
-@group(0) @binding(2) var<storage, write> pixels : Pixels;
+@group(0) @binding(2) var<storage, read_write> pixels : Pixels;
 @group(0) @binding(3) var<storage, read_write> range : Range;
 
-@stage(compute) @workgroup_size(1, 1, 1)
+@compute @workgroup_size(1, 1, 1)
 fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     var pixel_index : u32 = global_id.x + global_id.y * uniforms.image_width;
     var x : f32 = f32(global_id.x) / f32(uniforms.image_width);
